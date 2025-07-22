@@ -169,241 +169,153 @@
             <p class="text-xs text-gray-500 text-center mt-8">Made with Gemini</p>
         </div>
 
-        <script>
-            // --- IMPORTANT: API Integration Section ---
-            // To get accurate, real-time data, you MUST replace the mockStockData
-            // and implement actual fetch() calls to a financial data API.
-            // Choose an API (e.g., Alpha Vantage, Finnhub, Polygon.io, IEX Cloud)
-            // and get your API key.
+<script>
+const API_KEY = '3A19C3JYVDVDQVSG'; // Replace with your real Alpha Vantage key
 
-             const API_KEY = '3A19C3JYVDVDQVSG'; // <<< REPLACE WITH YOUR ACTUAL FINNHUB API KEY HERE
+const stockSymbolInput = document.getElementById('stockSymbol');
+const purchaseDateInput = document.getElementById('purchaseDate');
+const investmentAmountInput = document.getElementById('investmentAmount');
+const calculateBtn = document.getElementById('calculateBtn');
+const errorMessageDiv = document.getElementById('errorMessage');
+const resultsSection = document.getElementById('resultsSection');
+const loadingSpinner = document.getElementById('loadingSpinner');
+const buttonText = document.getElementById('buttonText');
 
-            const stockSymbolInput = document.getElementById('stockSymbol');
-            const purchaseDateInput = document.getElementById('purchaseDate');
-            const investmentAmountInput = document.getElementById('investmentAmount');
-            const calculateBtn = document.getElementById('calculateBtn');
-            const errorMessageDiv = document.getElementById('errorMessage');
-            const resultsSection = document.getElementById('resultsSection');
-            const loadingSpinner = document.getElementById('loadingSpinner');
-            const buttonText = document.getElementById('buttonText');
+const resultSymbol = document.getElementById('resultSymbol');
+const resultInitialInvestment = document.getElementById('resultInitialInvestment');
+const resultPurchasePrice = document.getElementById('resultPurchasePrice');
+const resultCurrentPrice = document.getElementById('resultCurrentPrice');
+const resultShares = document.getElementById('resultShares');
+const resultDividends = document.getElementById('resultDividends');
+const resultDaysHeld = document.getElementById('resultDaysHeld');
+const resultCurrentValue = document.getElementById('resultCurrentValue');
+const resultTotalReturn = document.getElementById('resultTotalReturn');
+const resultReturnPercentage = document.getElementById('resultReturnPercentage');
+const resultSummary = document.getElementById('resultSummary');
 
-            // Result display elements
-            const resultSymbol = document.getElementById('resultSymbol');
-            const resultInitialInvestment = document.getElementById('resultInitialInvestment');
-            const resultPurchasePrice = document.getElementById('resultPurchasePrice');
-            const resultCurrentPrice = document.getElementById('resultCurrentPrice');
-            const resultShares = document.getElementById('resultShares');
-            const resultDividends = document.getElementById('resultDividends');
-            const resultDaysHeld = document.getElementById('resultDaysHeld');
-            const resultCurrentValue = document.getElementById('resultCurrentValue');
-            const resultTotalReturn = document.getElementById('resultTotalReturn');
-            const resultReturnPercentage = document.getElementById('resultReturnPercentage');
-            const resultSummary = document.getElementById('resultSummary');
+calculateBtn.addEventListener('click', calculatePerformance);
 
-            calculateBtn.addEventListener('click', calculatePerformance);
+function showLoading(isLoading) {
+    if (isLoading) {
+        loadingSpinner.style.display = 'block';
+        buttonText.textContent = 'Calculating...';
+        calculateBtn.disabled = true;
+        errorMessageDiv.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+    } else {
+        loadingSpinner.style.display = 'none';
+        buttonText.textContent = 'Calculate Performance';
+        calculateBtn.disabled = false;
+    }
+}
 
-            function showLoading(isLoading) {
-                if (isLoading) {
-                    loadingSpinner.style.display = 'block';
-                    buttonText.textContent = 'Calculating...';
-                    calculateBtn.disabled = true;
-                    errorMessageDiv.classList.add('hidden');
-                    resultsSection.classList.add('hidden');
-                } else {
-                    loadingSpinner.style.display = 'none';
-                    buttonText.textContent = 'Calculate Performance';
-                    calculateBtn.disabled = false;
-                }
-            }
+function showError(message) {
+    errorMessageDiv.textContent = message;
+    errorMessageDiv.classList.remove('hidden');
+    resultsSection.classList.add('hidden');
+}
 
-            function showError(message) {
-                errorMessageDiv.textContent = message;
-                errorMessageDiv.classList.remove('hidden');
-                resultsSection.classList.add('hidden');
-            }
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
 
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            }
+async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
+    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&apikey=${API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
 
-            async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
-                // Convert dates to Unix timestamps for historical candles
-                const purchaseTimestamp = Math.floor(new Date(purchaseDateStr).getTime() / 1000);
-                // Add 86400 (seconds in a day) to ensure the 'to' timestamp covers the end of the purchase day
-                const endOfPurchaseDayTimestamp = purchaseTimestamp + 86400;
+    if (!data['Time Series (Daily)']) {
+        throw new Error(`Alpha Vantage error: ${data['Note'] || data['Error Message'] || 'Missing data'}`);
+    }
 
-                const todayTimestamp = Math.floor(new Date(endDateStr).getTime() / 1000);
+    const dailyData = data['Time Series (Daily)'];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const purchaseStr = new Date(purchaseDateStr).toISOString().split('T')[0];
 
-                try {
-                    // 1. Fetch Historical Price for Purchase Date (using daily candles)
-                    // We fetch a single day candle to get the closing price for the purchase date.
-                    const historicalUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${purchaseTimestamp}&to=${endOfPurchaseDayTimestamp}&token=${API_KEY}`;
-                    const historicalResponse = await fetch(historicalUrl);
-                    if (!historicalResponse.ok) {
-                        const errorText = await historicalResponse.text();
-                        throw new Error(`Finnhub historical API error: ${historicalResponse.status} - ${errorText}`);
-                    }
-                    const historicalData = await historicalResponse.json();
+    const purchasePrice = parseFloat(dailyData[purchaseStr]?.['5. adjusted close']);
+    const currentPrice = parseFloat(dailyData[todayStr]?.['5. adjusted close']) || parseFloat(Object.values(dailyData)[0]['5. adjusted close']);
 
-                    let purchasePrice = null;
-                    // Finnhub's candle data returns 'c' for close price, 't' for timestamp
-                    if (historicalData && historicalData.c && historicalData.c.length > 0) {
-                        purchasePrice = historicalData.c[0]; // Get the closing price for the day
-                    } else {
-                        throw new Error(`No historical price found for ${symbol} on ${formatDate(purchaseDateStr)}. It might not be a trading day or data is unavailable.`);
-                    }
+    if (!purchasePrice || !currentPrice) {
+        throw new Error(`Could not find valid stock prices for ${symbol} on ${purchaseStr} or today.`);
+    }
 
+    return { purchasePrice, currentPrice };
+}
 
-                    // 2. Fetch Current Price
-                    const quoteUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`;
-                    const currentResponse = await fetch(quoteUrl);
-                    if (!currentResponse.ok) {
-                        const errorText = await currentResponse.text();
-                        throw new Error(`Finnhub quote API error: ${currentResponse.status} - ${errorText}`);
-                    }
-                    const currentData = await currentResponse.json();
-                    const currentPrice = currentData.c; // 'c' is the current price in Finnhub quote response
+async function calculatePerformance() {
+    showLoading(true);
 
-                    if (!currentPrice || currentPrice === 0) {
-                        throw new Error(`Could not retrieve current price for ${symbol}.`);
-                    }
+    const symbol = stockSymbolInput.value.toUpperCase().trim();
+    const purchaseDateStr = purchaseDateInput.value;
+    const investmentAmount = parseFloat(investmentAmountInput.value);
+    const today = new Date();
 
-                    // 3. Fetch Dividends
-                    // Finnhub's dividend API uses YYYY-MM-DD format for from/to dates
-                    const dividendsUrl = `https://finnhub.io/api/v1/stock/dividend?symbol=${symbol}&from=${purchaseDateStr}&to=${endDateStr}&token=${API_KEY}`;
-                    const dividendsResponse = await fetch(dividendsUrl);
-                    if (!dividendsResponse.ok) {
-                        const errorText = await dividendsResponse.text();
-                        throw new Error(`Finnhub dividend API error: ${dividendsResponse.status} - ${errorText}`);
-                    }
-                    const dividendsData = await dividendsResponse.json();
+    if (!symbol || !purchaseDateStr || isNaN(investmentAmount) || investmentAmount <= 0) {
+        showError('Please fill in all fields with valid data.');
+        showLoading(false);
+        return;
+    }
 
-                    // Finnhub returns an array of dividend objects. Map them to our expected format.
-                    // Ensure 'dividendsData' is an array before mapping.
-                    const dividends = Array.isArray(dividendsData) ? dividendsData.map(d => ({
-                        exDate: d.exDate, // Finnhub provides exDate directly
-                        amount: d.amount // Finnhub provides amount directly
-                    })) : [];
+    const purchaseDate = new Date(purchaseDateStr);
+    today.setHours(0, 0, 0, 0);
 
-                    return { purchasePrice, currentPrice, dividends };
+    if (purchaseDate >= today) {
+        showError('Purchase date must be in the past.');
+        showLoading(false);
+        return;
+    }
 
-                } catch (error) {
-                    console.error("Error fetching stock data from Finnhub:", error);
-                    // Provide a more user-friendly error message
-                    throw new Error(`Error fetching data for ${symbol}: ${error.message}. Please check the symbol, date, or your API key.`);
-                }
-            }
+    try {
+        const { purchasePrice, currentPrice } = await fetchStockData(symbol, purchaseDateStr, today.toISOString().split('T')[0]);
 
+        const sharesPurchased = investmentAmount / purchasePrice;
+        const diffDays = Math.ceil((today - purchaseDate) / (1000 * 60 * 60 * 24));
+        const currentValue = sharesPurchased * currentPrice;
+        const totalReturn = currentValue - investmentAmount;
+        const returnPercentage = (totalReturn / investmentAmount) * 100;
 
-            async function calculatePerformance() {
-                showLoading(true);
+        resultSymbol.textContent = symbol;
+        resultInitialInvestment.textContent = `$${investmentAmount.toFixed(2)}`;
+        resultPurchasePrice.textContent = `$${purchasePrice.toFixed(2)}`;
+        resultCurrentPrice.textContent = `$${currentPrice.toFixed(2)}`;
+        resultShares.textContent = sharesPurchased.toFixed(4);
+        resultDividends.textContent = `$0.00`;
+        resultDaysHeld.textContent = diffDays;
+        resultCurrentValue.textContent = `$${currentValue.toFixed(2)}`;
+        resultTotalReturn.textContent = `$${totalReturn.toFixed(2)}`;
+        resultReturnPercentage.textContent = `${returnPercentage.toFixed(2)}%`;
 
-                const symbol = stockSymbolInput.value.toUpperCase().trim();
-                let purchaseDateStr = purchaseDateInput.value; // Use 'let' as it might be updated
-                const investmentAmount = parseFloat(investmentAmountInput.value);
+        if (totalReturn >= 0) {
+            resultTotalReturn.classList.add('text-green-600');
+            resultReturnPercentage.classList.add('text-green-600');
+        } else {
+            resultTotalReturn.classList.add('text-red-600');
+            resultReturnPercentage.classList.add('text-red-600');
+        }
 
-                if (!symbol || !purchaseDateStr || isNaN(investmentAmount) || investmentAmount <= 0) {
-                    showError('Please fill in all fields with valid data.');
-                    showLoading(false);
-                    return;
-                }
+        resultSummary.textContent = `Your $${investmentAmount.toFixed(2)} investment in ${symbol} on ${formatDate(purchaseDateStr)} would be worth $${currentValue.toFixed(2)} (${returnPercentage.toFixed(2)}% return).`;
+        resultsSection.classList.remove('hidden');
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        showLoading(false);
+    }
+}
 
-                const purchaseDate = new Date(purchaseDateStr);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Normalize today's date to start of day
+// Set today's date as max for date input
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const dd = String(today.getDate()).padStart(2, '0');
+purchaseDateInput.setAttribute('max', `${yyyy}-${mm}-${dd}`);
 
-                if (purchaseDate >= today) {
-                    showError('Purchase date must be in the past.');
-                    showLoading(false);
-                    return;
-                }
-
-                try {
-                    // Call the new fetchStockData function to get real data
-                    const { purchasePrice, currentPrice, dividends } = await fetchStockData(symbol, purchaseDateStr, today.toISOString().split('T')[0]);
-
-                    if (!purchasePrice || !currentPrice) {
-                        showError(`Missing price data for ${symbol}. Could not retrieve purchase or current price.`);
-                        showLoading(false);
-                        return;
-                    }
-
-                    // Calculate shares purchased
-                    const sharesPurchased = investmentAmount / purchasePrice;
-
-                    // Calculate total dividends
-                    let totalDividendsPerShare = 0;
-                    const purchaseTimestamp = purchaseDate.getTime();
-
-                    if (dividends) {
-                        dividends.forEach(dividend => {
-                            const dividendExDate = new Date(dividend.exDate);
-                            // Only count dividends if ex-date is after or on purchase date AND before or on today's date
-                            if (dividendExDate.getTime() >= purchaseTimestamp && dividendExDate.getTime() <= today.getTime()) {
-                                totalDividendsPerShare += dividend.amount;
-                            }
-                        });
-                    }
-
-                    // Calculate days held
-                    const diffTime = Math.abs(today.getTime() - purchaseDate.getTime());
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                    // Calculate current value of shares
-                    const currentValueShares = sharesPurchased * currentPrice;
-
-                    // Calculate total return
-                    const totalReturn = (currentValueShares + (sharesPurchased * totalDividendsPerShare)) - investmentAmount;
-                    const returnPercentage = (totalReturn / investmentAmount) * 100;
-
-                    // Display results
-                    resultSymbol.textContent = symbol;
-                    resultInitialInvestment.textContent = `$${investmentAmount.toFixed(2)}`;
-                    resultPurchasePrice.textContent = `$${purchasePrice.toFixed(2)}`;
-                    resultCurrentPrice.textContent = `$${currentPrice.toFixed(2)}`;
-                    resultShares.textContent = sharesPurchased.toFixed(4);
-                    resultDividends.textContent = `$${(sharesPurchased * totalDividendsPerShare).toFixed(2)}`;
-                    resultDaysHeld.textContent = diffDays;
-                    resultCurrentValue.textContent = `$${currentValueShares.toFixed(2)}`;
-
-                    resultTotalReturn.textContent = `$${totalReturn.toFixed(2)}`;
-                    resultReturnPercentage.textContent = `${returnPercentage.toFixed(2)}%`;
-                    if (totalReturn >= 0) {
-                        resultTotalReturn.classList.remove('text-red-600');
-                        resultTotalReturn.classList.add('text-green-600');
-                        resultReturnPercentage.classList.remove('text-red-600');
-                        resultReturnPercentage.classList.add('text-green-600');
-                    } else {
-                        resultTotalReturn.classList.remove('text-green-600');
-                        resultTotalReturn.classList.add('text-red-600');
-                        resultReturnPercentage.classList.remove('text-green-600');
-                        resultReturnPercentage.classList.add('text-red-600');
-                    }
-
-                    resultSummary.textContent = `Your $${investmentAmount.toFixed(2)} investment in ${symbol} on ${formatDate(purchaseDateStr)} would be worth $${(currentValueShares + (sharesPurchased * totalDividendsPerShare)).toFixed(2)} (${returnPercentage.toFixed(2)}% return) including $${(sharesPurchased * totalDividendsPerShare).toFixed(2)} in dividends.`;
-
-                    resultsSection.classList.remove('hidden');
-                } catch (error) {
-                    showError(error.message);
-                } finally {
-                    showLoading(false);
-                }
-            }
-
-            // Set today's date as the max for the date input
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-            const dd = String(today.getDate()).padStart(2, '0');
-            purchaseDateInput.setAttribute('max', `${yyyy}-${mm}-${dd}`);
-
-            // Automatically trigger calculation with default values on load
-            window.onload = () => {
-                 calculatePerformance();
-            };
-
-        </script>
+// Auto-calculate on load
+window.onload = () => {
+    calculatePerformance();
+};
+</script>
+        
     </body>
     </html>
     
