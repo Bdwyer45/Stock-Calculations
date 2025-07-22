@@ -4,90 +4,92 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stock Performance Backtester</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    input, button {
+      margin: 5px;
+      padding: 10px;
+      width: 250px;
+    }
+    .error { color: red; }
+  </style>
 </head>
-<body class="bg-gray-100">
-  <div class="flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
-      <h1 class="text-2xl font-bold mb-6 text-center">Stock Performance Backtester</h1>
-      <div class="space-y-4">
-        <input id="symbol" type="text" placeholder="Stock Symbol" class="w-full p-2 border rounded" />
-        <input id="date" type="date" class="w-full p-2 border rounded" />
-        <input id="amount" type="number" placeholder="Investment Amount ($)" class="w-full p-2 border rounded" />
-        <button id="calculate" class="w-full bg-blue-600 text-white py-2 rounded">Calculate Performance</button>
-      </div>
-      <div id="result" class="mt-6 text-center text-sm"></div>
-      <p class="mt-4 text-center text-gray-400 text-xs">Made with Gemini</p>
-    </div>
-  </div>
+<body>
+  <h2>Stock Performance Backtester</h2>
+  <input type="text" id="ticker" placeholder="Enter Ticker (e.g., AAPL)" />
+  <input type="date" id="startDate" />
+  <input type="number" id="amount" placeholder="Amount Invested ($)" />
+  <button onclick="calculatePerformance()">Calculate Performance</button>
+  <p id="result"></p>
 
   <script>
-    const API_KEY = "687fec5d04c700.10558204";
-    const BASE_URL = "https://eodhd.com/api";
-
-    document.getElementById("calculate").addEventListener("click", async () => {
-      const symbol = document.getElementById("symbol").value.trim().toUpperCase();
-      const purchaseDate = document.getElementById("date").value;
+    async function calculatePerformance() {
+      const ticker = document.getElementById("ticker").value.trim();
+      const startDate = new Date(document.getElementById("startDate").value);
       const amount = parseFloat(document.getElementById("amount").value);
       const resultDiv = document.getElementById("result");
+      resultDiv.innerText = "";
 
-      if (!symbol || !purchaseDate || isNaN(amount)) {
-        resultDiv.innerHTML = `<p class="text-red-600">Please fill in all fields correctly.</p>`;
+      if (!ticker || isNaN(startDate.getTime()) || isNaN(amount)) {
+        resultDiv.innerText = "Please enter valid inputs.";
         return;
       }
 
+      const startTimestamp = Math.floor(startDate.getTime() / 1000);
+      const endTimestamp = Math.floor(new Date().getTime() / 1000);
+
       try {
-        resultDiv.innerHTML = `<p class="text-gray-600">Calculating...</p>`;
+        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-historical-data?symbol=${ticker}&period1=${startTimestamp}&period2=${endTimestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "x-rapidapi-host": "apidojo-yahoo-finance-v1.p.rapidapi.com",
+            "x-rapidapi-key": "98ac820276msh23ac0631d8558bbp149ef4jsnfd5c84971114"
+          }
+        });
 
-        const today = new Date().toISOString().split("T")[0];
-        const priceUrl = `${BASE_URL}/eod/${symbol}.US?api_token=${API_KEY}&from=${purchaseDate}&to=${today}&period=d&fmt=json`;
+        const data = await response.json();
 
-        const priceRes = await fetch(priceUrl);
-        const priceData = await priceRes.json();
-
-        if (!Array.isArray(priceData) || priceData.length < 2) {
-          resultDiv.innerHTML = `<p class="text-red-600">Error: Not enough data.</p>`;
+        if (!data.prices || data.prices.length === 0) {
+          resultDiv.innerText = "No price data found.";
           return;
         }
 
-        const startPrice = priceData[0].adjusted_close || priceData[0].close;
-        const endPrice = priceData[priceData.length - 1].adjusted_close || priceData[priceData.length - 1].close;
+        const sorted = data.prices.filter(p => p.type !== "DIVIDEND").sort((a, b) => a.date - b.date);
+        const startData = sorted.find(p => p.date >= startTimestamp);
+        const endData = sorted[sorted.length - 1];
 
-        const shares = amount / startPrice;
-        const valueToday = shares * endPrice;
-        const returnPct = ((valueToday - amount) / amount * 100).toFixed(2);
+        const shares = amount / startData.close;
+        let totalValue = shares * endData.close;
 
-        // Fetch dividends
-        const dividendUrl = `${BASE_URL}/div/${symbol}.US?api_token=${API_KEY}&from=${purchaseDate}&to=${today}&fmt=json`;
-        let totalDividends = 0;
+        const dividendTotal = data.prices
+          .filter(p => p.type === "DIVIDEND" && p.date >= startData.date && p.date <= endData.date)
+          .reduce((sum, d) => sum + (d.amount * shares), 0);
 
-        try {
-          const divRes = await fetch(dividendUrl);
-          const divData = await divRes.json();
-          if (Array.isArray(divData)) {
-            divData.forEach(div => {
-              if (div.value) totalDividends += shares * parseFloat(div.value);
-            });
-          }
-        } catch (e) {
-          console.warn("Dividend fetch failed:", e.message);
-        }
-
-        const totalValue = valueToday + totalDividends;
-        const totalReturnPct = ((totalValue - amount) / amount * 100).toFixed(2);
+        const totalReturn = totalValue + dividendTotal;
+        const gain = totalReturn - amount;
+        const pct = ((totalReturn / amount) - 1) * 100;
 
         resultDiv.innerHTML = `
-          <p><strong>${symbol}</strong> grew from $${startPrice.toFixed(2)} to $${endPrice.toFixed(2)} since ${purchaseDate}.</p>
-          <p>Initial Value: $${amount.toFixed(2)}</p>
-          <p>Final Value (price only): $${valueToday.toFixed(2)}</p>
-          <p>Dividends Earned: $${totalDividends.toFixed(2)}</p>
-          <p><strong>Total Return: ${totalReturnPct}%</strong></p>
+          <strong>Result for ${ticker.toUpperCase()}:</strong><br>
+          Final Value: $${totalValue.toFixed(2)}<br>
+          Dividends Collected: $${dividendTotal.toFixed(2)}<br>
+          Total Value: $${totalReturn.toFixed(2)}<br>
+          Net Gain: $${gain.toFixed(2)}<br>
+          ROI: ${pct.toFixed(2)}%
         `;
       } catch (err) {
         console.error(err);
-        resultDiv.innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
+        resultDiv.innerHTML = `<span class="error">Error fetching data or processing it.</span>`;
       }
-    });
+    }
   </script>
 </body>
 </html>
