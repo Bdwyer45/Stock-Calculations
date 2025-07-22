@@ -117,6 +117,9 @@
   </div>
 
 <script>
+<script>
+const API_KEY = 'b31404d3c4d64a34b9b65c7b073c692f';
+
 const stockSymbolInput = document.getElementById('stockSymbol');
 const purchaseDateInput = document.getElementById('purchaseDate');
 const investmentAmountInput = document.getElementById('investmentAmount');
@@ -138,20 +141,10 @@ const resultTotalReturn = document.getElementById('resultTotalReturn');
 const resultReturnPercentage = document.getElementById('resultReturnPercentage');
 const resultSummary = document.getElementById('resultSummary');
 
-calculateBtn.addEventListener('click', calculatePerformance);
-
 function showLoading(isLoading) {
-    if (isLoading) {
-        loadingSpinner.style.display = 'block';
-        buttonText.textContent = 'Calculating...';
-        calculateBtn.disabled = true;
-        errorMessageDiv.classList.add('hidden');
-        resultsSection.classList.add('hidden');
-    } else {
-        loadingSpinner.style.display = 'none';
-        buttonText.textContent = 'Calculate Performance';
-        calculateBtn.disabled = false;
-    }
+    loadingSpinner.style.display = isLoading ? 'block' : 'none';
+    buttonText.textContent = isLoading ? 'Calculating...' : 'Calculate Performance';
+    calculateBtn.disabled = isLoading;
 }
 
 function showError(message) {
@@ -165,51 +158,50 @@ function formatDate(dateString) {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
-    try {
-        const historicalUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
-        const historicalResponse = await fetch(historicalUrl);
-        const historicalData = await historicalResponse.json();
+async function fetchStockData(symbol, purchaseDateStr) {
+    const today = new Date().toISOString().split('T')[0];
 
-        if (!historicalData.values || historicalData.values.length === 0) {
-            throw new Error(`No historical price found for ${symbol} on ${purchaseDateStr}.`);
-        }
+    const historyURL = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=${API_KEY}`;
+    const quoteURL = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${API_KEY}`;
 
-        const purchasePrice = parseFloat(historicalData.values[0].close);
+    const [historyRes, quoteRes] = await Promise.all([
+        fetch(historyURL),
+        fetch(quoteURL),
+    ]);
 
-        const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
-        const quoteResponse = await fetch(quoteUrl);
-        const quoteData = await quoteResponse.json();
+    const historyData = await historyRes.json();
+    const quoteData = await quoteRes.json();
 
-        const currentPrice = parseFloat(quoteData.close);
-        if (!currentPrice || isNaN(currentPrice)) {
-            throw new Error(`Could not retrieve current price for ${symbol}.`);
-        }
-
-        return { purchasePrice, currentPrice };
-    } catch (error) {
-        console.error("Twelve Data API error:", error);
-        throw new Error(`Failed to fetch data for ${symbol}: ${error.message}`);
+    if (!historyData.values || historyData.values.length === 0) {
+        throw new Error(`No historical price found for ${symbol} on ${purchaseDateStr}`);
     }
+
+    const purchasePrice = parseFloat(historyData.values[0].close);
+    const currentPrice = parseFloat(quoteData.close);
+
+    if (isNaN(currentPrice)) {
+        throw new Error(`Current price unavailable for ${symbol}`);
+    }
+
+    return { purchasePrice, currentPrice };
 }
 
 async function calculatePerformance() {
     showLoading(true);
+    errorMessageDiv.classList.add('hidden');
 
     const symbol = stockSymbolInput.value.toUpperCase().trim();
     const purchaseDateStr = purchaseDateInput.value;
     const investmentAmount = parseFloat(investmentAmountInput.value);
-    const today = new Date();
 
     if (!symbol || !purchaseDateStr || isNaN(investmentAmount) || investmentAmount <= 0) {
-        showError('Please fill in all fields with valid data.');
+        showError('Fill in all fields with valid data.');
         showLoading(false);
         return;
     }
 
+    const today = new Date();
     const purchaseDate = new Date(purchaseDateStr);
-    today.setHours(0, 0, 0, 0);
-
     if (purchaseDate >= today) {
         showError('Purchase date must be in the past.');
         showLoading(false);
@@ -217,52 +209,41 @@ async function calculatePerformance() {
     }
 
     try {
-        const { purchasePrice, currentPrice } = await fetchStockData(symbol, purchaseDateStr, today.toISOString().split('T')[0]);
-
-        const sharesPurchased = investmentAmount / purchasePrice;
-        const diffDays = Math.ceil((today - purchaseDate) / (1000 * 60 * 60 * 24));
-        const currentValue = sharesPurchased * currentPrice;
+        const { purchasePrice, currentPrice } = await fetchStockData(symbol, purchaseDateStr);
+        const shares = investmentAmount / purchasePrice;
+        const currentValue = shares * currentPrice;
         const totalReturn = currentValue - investmentAmount;
         const returnPercentage = (totalReturn / investmentAmount) * 100;
+        const daysHeld = Math.ceil((today - purchaseDate) / (1000 * 60 * 60 * 24));
 
         resultSymbol.textContent = symbol;
         resultInitialInvestment.textContent = `$${investmentAmount.toFixed(2)}`;
         resultPurchasePrice.textContent = `$${purchasePrice.toFixed(2)}`;
         resultCurrentPrice.textContent = `$${currentPrice.toFixed(2)}`;
-        resultShares.textContent = sharesPurchased.toFixed(4);
+        resultShares.textContent = shares.toFixed(4);
         resultDividends.textContent = `$0.00`;
-        resultDaysHeld.textContent = diffDays;
+        resultDaysHeld.textContent = daysHeld;
         resultCurrentValue.textContent = `$${currentValue.toFixed(2)}`;
         resultTotalReturn.textContent = `$${totalReturn.toFixed(2)}`;
         resultReturnPercentage.textContent = `${returnPercentage.toFixed(2)}%`;
+        resultSummary.textContent = `Your $${investmentAmount.toFixed(2)} in ${symbol} on ${formatDate(purchaseDateStr)} is worth $${currentValue.toFixed(2)} (${returnPercentage.toFixed(2)}%).`;
 
-        if (totalReturn >= 0) {
-            resultTotalReturn.classList.add('text-green-600');
-            resultReturnPercentage.classList.add('text-green-600');
-        } else {
-            resultTotalReturn.classList.add('text-red-600');
-            resultReturnPercentage.classList.add('text-red-600');
-        }
-
-        resultSummary.textContent = `Your $${investmentAmount.toFixed(2)} investment in ${symbol} on ${formatDate(purchaseDateStr)} would be worth $${currentValue.toFixed(2)} (${returnPercentage.toFixed(2)}% return).`;
         resultsSection.classList.remove('hidden');
-    } catch (error) {
-        showError(error.message);
+    } catch (err) {
+        showError(err.message);
     } finally {
         showLoading(false);
     }
 }
 
-// Set today's date as max
+// Set today as max date
 const today = new Date();
 const yyyy = today.getFullYear();
 const mm = String(today.getMonth() + 1).padStart(2, '0');
 const dd = String(today.getDate()).padStart(2, '0');
 purchaseDateInput.setAttribute('max', `${yyyy}-${mm}-${dd}`);
 
-window.onload = () => {
-    calculatePerformance();
-};
+calculateBtn.addEventListener('click', calculatePerformance);
 </script>
 </body>
 </html>
