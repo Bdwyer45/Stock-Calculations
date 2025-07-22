@@ -5,120 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Performance Backtester</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f3f4f6;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-    .card {
-      background-color: #ffffff;
-      border-radius: 1rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      padding: 2rem;
-      width: 100%;
-      max-width: 500px;
-    }
-    .btn {
-      background-color: #4f46e5;
-      color: #fff;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-      font-weight: bold;
-      transition: background-color 0.3s;
-      width: 100%;
-    }
-    .btn:hover {
-      background-color: #4338ca;
-    }
-    .error {
-      color: red;
-      margin-top: 1rem;
-      text-align: center;
-    }
-    #result {
-      margin-top: 1rem;
-      text-align: center;
-      font-weight: bold;
-    }
-  </style>
 </head>
-<body>
-  <div class="card">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="card bg-white p-8 rounded-lg shadow-md w-full max-w-md">
     <h1 class="text-2xl font-bold mb-4 text-center">Stock Performance Backtester</h1>
-    <div class="mb-4">
-      <label class="block mb-1 font-medium">Stock Symbol</label>
-      <input id="symbol" type="text" placeholder="e.g., AAPL, MSFT, BITO" class="w-full border rounded px-3 py-2" />
-    </div>
-    <div class="mb-4">
-      <label class="block mb-1 font-medium">Purchase Date</label>
-      <input id="date" type="date" class="w-full border rounded px-3 py-2" />
-    </div>
-    <div class="mb-4">
-      <label class="block mb-1 font-medium">Investment Amount ($)</label>
-      <input id="amount" type="number" class="w-full border rounded px-3 py-2" />
-    </div>
-    <button id="calculateBtn" class="btn">Calculate Performance</button>
-    <div id="result"></div>
-    <div id="error" class="error"></div>
-    <p class="mt-4 text-center text-xs text-gray-400">Made with Gemini</p>
+    <label class="block mb-2">Stock Symbol</label>
+    <input id="symbolInput" class="border w-full mb-4 p-2" placeholder="e.g., AAPL" />
+    
+    <label class="block mb-2">Purchase Date</label>
+    <input id="dateInput" type="date" class="border w-full mb-4 p-2" />
+    
+    <label class="block mb-2">Investment Amount ($)</label>
+    <input id="amountInput" type="number" class="border w-full mb-4 p-2" value="1000" />
+    
+    <button id="calculateBtn" class="bg-indigo-600 text-white p-2 rounded w-full hover:bg-indigo-700">
+      Calculate Performance
+    </button>
+    
+    <div id="results" class="mt-4 text-center"></div>
+    <p class="text-xs text-center mt-4">Made with Gemini</p>
   </div>
 
   <script>
-    const API_KEY = 'b31404d3c4d64a34b9b65c7b073c692f';
+    const calculateBtn = document.getElementById('calculateBtn');
+    const resultsDiv = document.getElementById('results');
 
-    async function fetchPrice(symbol, date) {
-      const formattedDate = new Date(date).toISOString().split('T')[0];
-      const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${formattedDate}&end_date=${formattedDate}&apikey=${API_KEY}`;
-      const response = await fetch(url);
-      const data = await response.json();
+    calculateBtn.addEventListener('click', async () => {
+      const symbol = document.getElementById('symbolInput').value.toUpperCase();
+      const date = document.getElementById('dateInput').value;
+      const amount = parseFloat(document.getElementById('amountInput').value);
 
-      if (!data || !data.values || data.values.length === 0) {
-        throw new Error("No data found for selected date.");
-      }
-
-      return parseFloat(data.values[0].close);
-    }
-
-    async function calculatePerformance() {
-      const symbol = document.getElementById('symbol').value.toUpperCase();
-      const date = document.getElementById('date').value;
-      const amount = parseFloat(document.getElementById('amount').value);
-      const result = document.getElementById('result');
-      const error = document.getElementById('error');
-      result.innerHTML = '';
-      error.innerHTML = '';
-
-      if (!symbol || !date || isNaN(amount)) {
-        error.innerHTML = "Please fill in all fields correctly.";
+      if (!symbol || !date || !amount) {
+        resultsDiv.textContent = "Please fill in all fields.";
         return;
       }
 
       try {
-        const purchasePrice = await fetchPrice(symbol, date);
-        const today = new Date().toISOString().split('T')[0];
-        const currentPrice = await fetchPrice(symbol, today);
-        const shares = amount / purchasePrice;
-        const valueToday = shares * currentPrice;
-        const gain = valueToday - amount;
-        const percent = ((gain / amount) * 100).toFixed(2);
+        resultsDiv.textContent = "Fetching data...";
 
-        result.innerHTML = `📈 ${symbol} performance: $${valueToday.toFixed(2)} (${percent}%)`;
+        const apiKey = "YOUR_API_KEY_HERE"; // Replace with your real TwelveData API key
+
+        const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${date}&apikey=${apiKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data || !data.values || data.values.length === 0) {
+          resultsDiv.textContent = "No data returned. Check the symbol and date.";
+          return;
+        }
+
+        const purchasePrice = parseFloat(data.values[data.values.length - 1].close);
+        const latestPrice = parseFloat(data.values[0].close);
+
+        const sharesBought = amount / purchasePrice;
+        const currentValue = sharesBought * latestPrice;
+        const returnPercent = ((currentValue - amount) / amount) * 100;
+
+        resultsDiv.innerHTML = `
+          <p>You bought at $${purchasePrice.toFixed(2)}</p>
+          <p>Current price: $${latestPrice.toFixed(2)}</p>
+          <p>Return: <strong>${returnPercent.toFixed(2)}%</strong></p>
+          <p>Current Value: <strong>$${currentValue.toFixed(2)}</strong></p>
+        `;
       } catch (err) {
-        error.innerHTML = `❌ Error: ${err.message}`;
+        resultsDiv.textContent = "Error fetching data.";
       }
-    }
-
-    document.getElementById('calculateBtn').addEventListener('click', calculatePerformance);
-
-    // Optional: set max date
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').setAttribute('max', today);
+    });
   </script>
 </body>
 </html>
