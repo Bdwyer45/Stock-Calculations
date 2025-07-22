@@ -7,68 +7,91 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-  <div class="card bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+  <div class="card bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
     <h1 class="text-2xl font-bold mb-4 text-center">Stock Performance Backtester</h1>
     <label class="block mb-2">Stock Symbol</label>
-    <input id="symbolInput" class="border w-full mb-4 p-2" placeholder="e.g., AAPL" />
-    
+    <input id="symbol" class="w-full p-2 border rounded mb-4" placeholder="e.g., AAPL" />
+
     <label class="block mb-2">Purchase Date</label>
-    <input id="dateInput" type="date" class="border w-full mb-4 p-2" />
-    
+    <input id="purchaseDate" type="date" class="w-full p-2 border rounded mb-4" />
+
     <label class="block mb-2">Investment Amount ($)</label>
-    <input id="amountInput" type="number" class="border w-full mb-4 p-2" value="1000" />
-    
-    <button id="calculateBtn" class="bg-indigo-600 text-white p-2 rounded w-full hover:bg-indigo-700">
+    <input id="amount" type="number" class="w-full p-2 border rounded mb-4" />
+
+    <button id="calculateBtn" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">
       Calculate Performance
     </button>
-    
-    <div id="results" class="mt-4 text-center"></div>
-    <p class="text-xs text-center mt-4">Made with Gemini</p>
+
+    <div id="results" class="mt-6 text-center hidden">
+      <p class="font-semibold" id="resultSummary"></p>
+      <p id="resultReturnPercentage" class="text-green-600 font-bold text-lg mt-2"></p>
+    </div>
+
+    <p id="error" class="text-red-600 text-sm mt-4 text-center hidden"></p>
+
+    <p class="text-xs text-center text-gray-400 mt-6">Made with Gemini</p>
   </div>
 
   <script>
-    const calculateBtn = document.getElementById('calculateBtn');
-    const resultsDiv = document.getElementById('results');
+    const calculateBtn = document.getElementById("calculateBtn");
+    const resultsSection = document.getElementById("results");
+    const resultSummary = document.getElementById("resultSummary");
+    const resultReturnPercentage = document.getElementById("resultReturnPercentage");
+    const errorDisplay = document.getElementById("error");
 
-    calculateBtn.addEventListener('click', async () => {
-      const symbol = document.getElementById('symbolInput').value.toUpperCase();
-      const date = document.getElementById('dateInput').value;
-      const amount = parseFloat(document.getElementById('amountInput').value);
+    async function fetchPrice(symbol, date) {
+      const url = `https://eodhistoricaldata.com/api/eod/${symbol}.US?from=${date}&to=${date}&api_token=687fec5d04c700.10558204&fmt=json`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-      if (!symbol || !date || !amount) {
-        resultsDiv.textContent = "Please fill in all fields.";
+      if (!Array.isArray(data) || data.length === 0 || !data[0].adjusted_close) {
+        throw new Error("No price data found.");
+      }
+
+      return data[0].adjusted_close;
+    }
+
+    async function fetchLatestPrice(symbol) {
+      const url = `https://eodhistoricaldata.com/api/real-time/${symbol}.US?api_token=687fec5d04c700.10558204&fmt=json`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.close) {
+        throw new Error("No latest price found.");
+      }
+
+      return data.close;
+    }
+
+    calculateBtn.addEventListener("click", async () => {
+      const symbol = document.getElementById("symbol").value.toUpperCase();
+      const purchaseDate = document.getElementById("purchaseDate").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+
+      resultsSection.classList.add("hidden");
+      errorDisplay.classList.add("hidden");
+
+      if (!symbol || !purchaseDate || isNaN(amount) || amount <= 0) {
+        errorDisplay.textContent = "Please enter all fields correctly.";
+        errorDisplay.classList.remove("hidden");
         return;
       }
 
       try {
-        resultsDiv.textContent = "Fetching data...";
-
-        const apiKey = "YOUR_API_KEY_HERE"; // Replace with your real TwelveData API key
-
-        const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${date}&apikey=${apiKey}`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (!data || !data.values || data.values.length === 0) {
-          resultsDiv.textContent = "No data returned. Check the symbol and date.";
-          return;
-        }
-
-        const purchasePrice = parseFloat(data.values[data.values.length - 1].close);
-        const latestPrice = parseFloat(data.values[0].close);
+        const purchasePrice = await fetchPrice(symbol, purchaseDate);
+        const currentPrice = await fetchLatestPrice(symbol);
 
         const sharesBought = amount / purchasePrice;
-        const currentValue = sharesBought * latestPrice;
-        const returnPercent = ((currentValue - amount) / amount) * 100;
+        const currentValue = sharesBought * currentPrice;
+        const returnPercentage = ((currentValue - amount) / amount) * 100;
 
-        resultsDiv.innerHTML = `
-          <p>You bought at $${purchasePrice.toFixed(2)}</p>
-          <p>Current price: $${latestPrice.toFixed(2)}</p>
-          <p>Return: <strong>${returnPercent.toFixed(2)}%</strong></p>
-          <p>Current Value: <strong>$${currentValue.toFixed(2)}</strong></p>
-        `;
+        resultSummary.textContent = `${symbol} has grown from $${purchasePrice.toFixed(2)} to $${currentPrice.toFixed(2)} since ${purchaseDate}.`;
+        resultReturnPercentage.textContent = `Return: ${returnPercentage.toFixed(2)}%`;
+
+        resultsSection.classList.remove("hidden");
       } catch (err) {
-        resultsDiv.textContent = "Error fetching data.";
+        errorDisplay.textContent = `❌ Error: ${err.message}`;
+        errorDisplay.classList.remove("hidden");
       }
     });
   </script>
