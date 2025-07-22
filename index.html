@@ -4,68 +4,88 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stock Performance Backtester</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4 text-center">Stock Performance Backtester</h1>
-    <form id="stockForm" class="space-y-4">
-      <input type="text" id="symbol" placeholder="Stock Symbol" class="w-full border border-gray-300 p-2 rounded" required>
-      <input type="date" id="purchaseDate" class="w-full border border-gray-300 p-2 rounded" required>
-      <input type="number" id="investmentAmount" placeholder="Investment Amount ($)" class="w-full border border-gray-300 p-2 rounded" required>
-      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Calculate Performance</button>
-    </form>
-    <div id="result" class="mt-6 text-center"></div>
-    <p class="text-xs text-center mt-4 text-gray-400">Made with Gemini</p>
+<body class="bg-gray-100">
+  <div class="flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+      <h1 class="text-2xl font-bold mb-6 text-center">Stock Performance Backtester</h1>
+      <div class="space-y-4">
+        <input id="symbol" type="text" placeholder="Stock Symbol" class="w-full p-2 border rounded" />
+        <input id="date" type="date" class="w-full p-2 border rounded" />
+        <input id="amount" type="number" placeholder="Investment Amount ($)" class="w-full p-2 border rounded" />
+        <button id="calculate" class="w-full bg-blue-600 text-white py-2 rounded">Calculate Performance</button>
+      </div>
+      <div id="result" class="mt-6 text-center text-sm"></div>
+      <p class="mt-4 text-center text-gray-400 text-xs">Made with Gemini</p>
+    </div>
   </div>
 
   <script>
-    document.getElementById('stockForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
+    const API_KEY = "687fec5d04c700.10558204";
+    const BASE_URL = "https://eodhd.com/api";
 
-      const symbolInput = document.getElementById('symbol').value.trim().toUpperCase();
-      const symbol = symbolInput.endsWith('.US') ? symbolInput : symbolInput + '.US';
-      const purchaseDate = document.getElementById('purchaseDate').value;
-      const investmentAmount = parseFloat(document.getElementById('investmentAmount').value);
-      const resultDiv = document.getElementById('result');
-      const apiKey = '687fec5d04c700.10558204';
+    document.getElementById("calculate").addEventListener("click", async () => {
+      const symbol = document.getElementById("symbol").value.trim().toUpperCase();
+      const purchaseDate = document.getElementById("date").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const resultDiv = document.getElementById("result");
 
-      const today = new Date().toISOString().split('T')[0];
+      if (!symbol || !purchaseDate || isNaN(amount)) {
+        resultDiv.innerHTML = `<p class="text-red-600">Please fill in all fields correctly.</p>`;
+        return;
+      }
 
       try {
-        const priceRes = await fetch(`https://eodhistoricaldata.com/api/eod/${symbol}?from=${purchaseDate}&to=${today}&api_token=${apiKey}&fmt=json`);
+        resultDiv.innerHTML = `<p class="text-gray-600">Calculating...</p>`;
+
+        const today = new Date().toISOString().split("T")[0];
+        const priceUrl = `${BASE_URL}/eod/${symbol}.US?api_token=${API_KEY}&from=${purchaseDate}&to=${today}&period=d&fmt=json`;
+
+        const priceRes = await fetch(priceUrl);
         const priceData = await priceRes.json();
 
         if (!Array.isArray(priceData) || priceData.length < 2) {
-          throw new Error("Not enough data found for selected date.");
+          resultDiv.innerHTML = `<p class="text-red-600">Error: Not enough data.</p>`;
+          return;
         }
 
-        const startPrice = priceData[0].adjusted_close;
-        const endPrice = priceData[priceData.length - 1].adjusted_close;
+        const startPrice = priceData[0].adjusted_close || priceData[0].close;
+        const endPrice = priceData[priceData.length - 1].adjusted_close || priceData[priceData.length - 1].close;
 
-        // Fetch dividend data
-        const divRes = await fetch(`https://eodhistoricaldata.com/api/div/${symbol}?api_token=${apiKey}&from=${purchaseDate}&to=${today}&fmt=json`);
-        const divData = await divRes.json();
+        const shares = amount / startPrice;
+        const valueToday = shares * endPrice;
+        const returnPct = ((valueToday - amount) / amount * 100).toFixed(2);
 
+        // Fetch dividends
+        const dividendUrl = `${BASE_URL}/div/${symbol}.US?api_token=${API_KEY}&from=${purchaseDate}&to=${today}&fmt=json`;
         let totalDividends = 0;
-        if (Array.isArray(divData)) {
-          totalDividends = divData.reduce((sum, item) => sum + (item.value || 0), 0);
+
+        try {
+          const divRes = await fetch(dividendUrl);
+          const divData = await divRes.json();
+          if (Array.isArray(divData)) {
+            divData.forEach(div => {
+              if (div.value) totalDividends += shares * parseFloat(div.value);
+            });
+          }
+        } catch (e) {
+          console.warn("Dividend fetch failed:", e.message);
         }
 
-        const totalReturn = ((endPrice + totalDividends) / startPrice - 1) * 100;
-        const finalAmount = investmentAmount * (1 + totalReturn / 100);
+        const totalValue = valueToday + totalDividends;
+        const totalReturnPct = ((totalValue - amount) / amount * 100).toFixed(2);
 
         resultDiv.innerHTML = `
-          <p class="text-sm text-gray-700">
-            ${symbolInput} has grown from $${startPrice.toFixed(2)} to $${endPrice.toFixed(2)} since ${purchaseDate}.
-          </p>
-          <p class="text-sm text-gray-700">Dividends collected: $${totalDividends.toFixed(2)}</p>
-          <p class="text-green-600 font-bold mt-2">Total Return: ${totalReturn.toFixed(2)}%</p>
-          <p class="text-blue-600 mt-1">Final Value: $${finalAmount.toFixed(2)}</p>
+          <p><strong>${symbol}</strong> grew from $${startPrice.toFixed(2)} to $${endPrice.toFixed(2)} since ${purchaseDate}.</p>
+          <p>Initial Value: $${amount.toFixed(2)}</p>
+          <p>Final Value (price only): $${valueToday.toFixed(2)}</p>
+          <p>Dividends Earned: $${totalDividends.toFixed(2)}</p>
+          <p><strong>Total Return: ${totalReturnPct}%</strong></p>
         `;
       } catch (err) {
         console.error(err);
-        resultDiv.innerHTML = `<p class="text-red-600 font-bold mt-2">❌ Error: ${err.message}</p>`;
+        resultDiv.innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
       }
     });
   </script>
