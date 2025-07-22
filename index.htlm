@@ -176,7 +176,7 @@
             // Choose an API (e.g., Alpha Vantage, Finnhub, Polygon.io, IEX Cloud)
             // and get your API key.
 
-            const API_KEY = 'd1t36lhr01qp6prm82ogd1t36lhr01qp6prm82p0'; // <<< REPLACE WITH YOUR ACTUAL FINNHUB API KEY HERE
+             const API_KEY = 'd1t36lhr01qp6prm82ogd1t36lhr01qp6prm82p0'; // <<< REPLACE WITH YOUR ACTUAL FINNHUB API KEY HERE
 
             const stockSymbolInput = document.getElementById('stockSymbol');
             const purchaseDateInput = document.getElementById('purchaseDate');
@@ -406,3 +406,4 @@
         </script>
     </body>
     </html>
+    
