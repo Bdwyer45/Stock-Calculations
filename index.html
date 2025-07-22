@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: sans-serif;
-      background: #f5f5f5;
+      background: #f8f9fa;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -15,30 +15,32 @@
     }
     .container {
       background: white;
-      padding: 30px;
+      padding: 2rem;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      width: 100%;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      width: 320px;
       text-align: center;
     }
-    input {
+    input, button {
       width: 100%;
       padding: 10px;
-      margin: 5px 0 15px;
-      font-size: 16px;
+      margin-top: 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
     button {
-      padding: 10px 20px;
-      background: #0056d2;
+      background-color: #1d72ff;
       color: white;
+      font-weight: bold;
       border: none;
-      font-size: 16px;
       cursor: pointer;
-      width: 100%;
     }
-    #result {
-      margin-top: 20px;
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+    .result {
+      margin-top: 1rem;
       text-align: left;
     }
   </style>
@@ -46,92 +48,77 @@
 <body>
   <div class="container">
     <h2>Stock Performance Backtester</h2>
-    <form>
-      <input id="ticker" type="text" placeholder="Enter Stock Symbol (e.g., AAPL)" required />
-      <input id="date" type="date" required />
-      <input id="amount" type="number" placeholder="Investment Amount $" required />
-      <button type="submit">Calculate Performance</button>
-    </form>
-    <div id="result"></div>
-    <p style="font-size: 0.8em; margin-top: 20px;">Made with Gemini</p>
+    <input type="text" id="ticker" placeholder="e.g. aapl" />
+    <input type="date" id="startDate" />
+    <input type="number" id="amount" placeholder="Investment Amount $" />
+    <button onclick="calculatePerformance()">Calculate Performance</button>
+    <div id="result" class="result"></div>
+    <p style="font-size: 0.8em; color: gray;">Made with Gemini</p>
   </div>
 
   <script>
-    async function fetchData(ticker, startDate) {
-      const rapidAPIKey = '98ac820276msh23ac0631d8558bbp149ef4jsnfd5c84971114'; // 🔁 <--- Replace this with your key
-      const encodedTicker = encodeURIComponent(ticker.toUpperCase());
-      const fromDate = new Date(startDate).getTime() / 1000;
-      const toDate = new Date().getTime() / 1000;
+    const rapidAPIKey = "YOUR_RAPIDAPI_KEY_HERE"; // Replace with your key
+    const host = "apidojo-yahoo-finance-v1.p.rapidapi.com";
 
-      const priceUrl = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-historical-data?symbol=${encodedTicker}&from=${Math.floor(fromDate)}&to=${Math.floor(toDate)}`;
-      const dividendUrl = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-dividends-history?symbol=${encodedTicker}`;
-
-      const headers = {
-        'X-RapidAPI-Key': rapidAPIKey,
-        'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com',
-      };
-
-      const [priceRes, divRes] = await Promise.all([
-        fetch(priceUrl, { headers }),
-        fetch(dividendUrl, { headers })
-      ]);
-
-      const priceData = await priceRes.json();
-      const dividendData = await divRes.json();
-
-      return { priceData, dividendData };
+    async function fetchHistoricalPrices(ticker, from, to) {
+      const url = `https://${host}/stock/v2/get-historical-data?symbol=${ticker}&period1=${from}&period2=${to}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-host': host,
+          'x-rapidapi-key': rapidAPIKey
+        }
+      });
+      const data = await res.json();
+      return data;
     }
 
-    function calculatePerformance(priceData, dividendData, startDate, amount) {
-      const start = new Date(startDate);
-      const prices = priceData.prices.filter(p => p.type === 'HISTORICAL');
-      const startPrice = prices.find(p => new Date(p.date * 1000) >= start)?.close;
-      const latestPrice = prices[0]?.close;
+    async function calculatePerformance() {
+      const ticker = document.getElementById("ticker").value.trim().toUpperCase();
+      const startDate = document.getElementById("startDate").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "";
 
-      if (!startPrice || !latestPrice) {
-        throw new Error("Unable to find valid price data.");
+      if (!ticker || !startDate || isNaN(amount)) {
+        resultDiv.innerHTML = `<p class="error">Please fill out all fields.</p>`;
+        return;
       }
 
-      const shares = amount / startPrice;
-      const finalValue = shares * latestPrice;
-
-      const dividends = (dividendData?.dividends || [])
-        .filter(d => new Date(d.date) >= start)
-        .reduce((sum, d) => sum + d.amount, 0) * shares;
-
-      const totalValue = finalValue + dividends;
-      const totalReturn = ((totalValue - amount) / amount) * 100;
-
-      return {
-        startPrice, latestPrice, finalValue, dividends, totalValue, totalReturn
-      };
-    }
-
-    document.querySelector('form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const ticker = document.querySelector('#ticker').value;
-      const date = document.querySelector('#date').value;
-      const amount = parseFloat(document.querySelector('#amount').value);
-      const resultDiv = document.querySelector('#result');
-      resultDiv.innerHTML = "Calculating...";
+      const startEpoch = Math.floor(new Date(startDate).getTime() / 1000);
+      const todayEpoch = Math.floor(new Date().getTime() / 1000);
 
       try {
-        const { priceData, dividendData } = await fetchData(ticker, date);
-        const {
-          startPrice, latestPrice, finalValue, dividends, totalValue, totalReturn
-        } = calculatePerformance(priceData, dividendData, date, amount);
+        const priceData = await fetchHistoricalPrices(ticker, startEpoch, todayEpoch);
+        const prices = (priceData?.prices || []).filter(p => p.type === 'HISTORICAL');
+
+        if (prices.length === 0) {
+          resultDiv.innerHTML = `<p class="error">❌ No historical price data found for "${ticker}".</p>`;
+          return;
+        }
+
+        const sorted = prices.sort((a, b) => a.date - b.date);
+        const firstClose = sorted[0].close;
+        const lastClose = sorted[sorted.length - 1].close;
+        const dividendTotal = sorted.reduce((sum, p) => sum + (p.dividends || 0), 0);
+
+        const shares = amount / firstClose;
+        const finalValue = shares * lastClose;
+        const totalDividends = shares * dividendTotal;
+        const totalReturn = ((finalValue + totalDividends - amount) / amount) * 100;
 
         resultDiv.innerHTML = `
-          <b>${ticker.toUpperCase()}</b> grew from $${startPrice.toFixed(2)} to $${latestPrice.toFixed(2)} since ${date}.<br>
-          Initial Value: $${amount.toFixed(2)}<br>
-          Final Value (price only): $${finalValue.toFixed(2)}<br>
-          Dividends Earned: $${dividends.toFixed(2)}<br>
-          <b>Total Return: ${totalReturn.toFixed(2)}%</b>
+          <b>${ticker}</b> grew from $${firstClose.toFixed(2)} to $${lastClose.toFixed(2)} since ${startDate}.<br/>
+          Initial Value: $${amount.toFixed(2)}<br/>
+          Final Value (price only): $${finalValue.toFixed(2)}<br/>
+          Dividends Earned: $${totalDividends.toFixed(2)}<br/>
+          <b>Total Return:</b> ${totalReturn.toFixed(2)}%
         `;
       } catch (err) {
-        resultDiv.innerHTML = `❌ Error: ${err.message}`;
+        console.error(err);
+        resultDiv.innerHTML = `<p class="error">❌ Error fetching data. Please try a different ticker or check your API key.</p>`;
       }
-    });
+    }
   </script>
 </body>
 </html>
