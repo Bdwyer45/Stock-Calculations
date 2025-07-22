@@ -1,176 +1,122 @@
 <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Stock Performance Backtester</title>
-        <!-- Tailwind CSS CDN for easy styling -->
-        <script src="https://cdn.tailwindcss.com"></script>
-        <!-- Google Fonts for 'Inter' -->
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-            /* Custom CSS for the backtester */
-            body {
-                font-family: 'Inter', sans-serif;
-                background-color: #f3f4f6; /* Light gray background */
-                /* Ensure body takes full height and centers content */
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 1rem; /* Add some padding around the content */
-            }
-            .card {
-                background-color: #ffffff;
-                border-radius: 1rem; /* Rounded corners */
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                width: 100%; /* Make card responsive */
-                max-width: 48rem; /* Max width for larger screens */
-                padding: 1.5rem; /* Padding inside the card */
-            }
-            @media (min-width: 768px) { /* Medium screens and up */
-                .card {
-                    padding: 2rem;
-                }
-            }
-            .btn-primary {
-                background-color: #4f46e5; /* Indigo 600 */
-                color: white;
-                padding: 0.75rem 1.5rem;
-                border-radius: 0.75rem; /* Rounded corners */
-                font-weight: 600;
-                transition: background-color 0.2s;
-                display: flex; /* Use flex for centering content */
-                align-items: center;
-                justify-content: center;
-                width: 100%; /* Full width button */
-            }
-            .btn-primary:hover {
-                background-color: #4338ca; /* Indigo 700 */
-            }
-            .input-field {
-                border: 1px solid #d1d5db; /* Gray 300 */
-                border-radius: 0.5rem;
-                padding: 0.75rem 1rem;
-                width: 100%;
-                box-sizing: border-box; /* Include padding and border in the element's total width and height */
-            }
-            .result-box {
-                padding: 1rem;
-                border-radius: 0.75rem;
-                font-weight: 500;
-            }
-            .result-box.green {
-                background-color: #d1fae5; /* Green 100 */
-                color: #065f46; /* Green 800 */
-            }
-            .result-box.purple {
-                background-color: #ede9fe; /* Purple 100 */
-                color: #5b21b6; /* Purple 800 */
-            }
-            .result-box.yellow {
-                background-color: #fffbeb; /* Yellow 100 */
-                color: #92400e; /* Yellow 800 */
-            }
-            .result-box.blue {
-                background-color: #e0f2fe; /* Light Blue 100 */
-                color: #0369a1; /* Light Blue 800 */
-            }
-            .result-box.red {
-                background-color: #fee2e2; /* Red 100 */
-                color: #991b1b; /* Red 800 */
-            }
-            .loading-spinner {
-                border: 4px solid rgba(0, 0, 0, 0.1);
-                border-left-color: #4f46e5; /* Indigo 600 */
-                border-radius: 50%;
-                width: 24px;
-                height: 24px;
-                animation: spin 1s linear infinite;
-                display: none; /* Hidden by default */
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-    </head>
-    <body class="flex items-center justify-center min-h-screen p-4">
-        <div class="card">
-            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Stock Performance Backtester</h1>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock Performance Backtester</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background-color: #ffffff;
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 48rem;
+      padding: 1.5rem;
+    }
+    .btn-primary {
+      background-color: #4f46e5;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+    .input-field {
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      width: 100%;
+    }
+    .result-box {
+      padding: 1rem;
+      border-radius: 0.75rem;
+      font-weight: 500;
+    }
+    .result-box.green { background-color: #d1fae5; color: #065f46; }
+    .result-box.purple { background-color: #ede9fe; color: #5b21b6; }
+    .result-box.yellow { background-color: #fffbeb; color: #92400e; }
+    .result-box.blue { background-color: #e0f2fe; color: #0369a1; }
+    .result-box.red { background-color: #fee2e2; color: #991b1b; }
+    .loading-spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #4f46e5;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Stock Performance Backtester</h1>
+    <div class="space-y-4 mb-8">
+      <div>
+        <label for="stockSymbol" class="block text-gray-700 text-sm font-medium mb-1">Stock Symbol</label>
+        <input type="text" id="stockSymbol" class="input-field" value="BITO"/>
+      </div>
+      <div>
+        <label for="purchaseDate" class="block text-gray-700 text-sm font-medium mb-1">Purchase Date</label>
+        <input type="date" id="purchaseDate" class="input-field" value="2024-10-01"/>
+      </div>
+      <div>
+        <label for="investmentAmount" class="block text-gray-700 text-sm font-medium mb-1">Investment Amount ($)</label>
+        <input type="number" id="investmentAmount" class="input-field" value="100"/>
+      </div>
+      <button id="calculateBtn" class="btn-primary">
+        <span id="buttonText">Calculate Performance</span>
+        <div id="loadingSpinner" class="loading-spinner ml-2"></div>
+      </button>
+      <div id="errorMessage" class="text-red-600 text-center font-medium mt-4 hidden"></div>
+    </div>
 
-            <div class="space-y-4 mb-8">
-                <div>
-                    <label for="stockSymbol" class="block text-gray-700 text-sm font-medium mb-1">Stock Symbol (e.g., AAPL, MSFT, BITO)</label>
-                    <input type="text" id="stockSymbol" class="input-field" placeholder="Enter stock symbol" value="BITO">
-                </div>
-                <div>
-                    <label for="purchaseDate" class="block text-gray-700 text-sm font-medium mb-1">Purchase Date</label>
-                    <input type="date" id="purchaseDate" class="input-field" value="2024-10-01">
-                </div>
-                <div>
-                    <label for="investmentAmount" class="block text-gray-700 text-sm font-medium mb-1">Investment Amount ($)</label>
-                    <input type="number" id="investmentAmount" class="input-field" placeholder="e.g., 1000" value="1">
-                </div>
-                <button id="calculateBtn" class="btn-primary">
-                    <span id="buttonText">Calculate Performance</span>
-                    <div id="loadingSpinner" class="loading-spinner ml-2"></div>
-                </button>
-                <div id="errorMessage" class="text-red-600 text-center font-medium mt-4 hidden"></div>
-            </div>
-
-            <div id="resultsSection" class="space-y-4 hidden">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Investment Performance Results</h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="result-box blue">
-                        <p class="text-sm">Stock Symbol</p>
-                        <p id="resultSymbol" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box green">
-                        <p class="text-sm">Initial Investment</p>
-                        <p id="resultInitialInvestment" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box purple">
-                        <p class="text-sm">Purchase Price</p>
-                        <p id="resultPurchasePrice" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box yellow">
-                        <p class="text-sm">Current Price</p>
-                        <p id="resultCurrentPrice" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box blue">
-                        <p class="text-sm">Shares Purchased</p>
-                        <p id="resultShares" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box green">
-                        <p class="text-sm">Dividend Income</p>
-                        <p id="resultDividends" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box purple">
-                        <p class="text-sm">Days Held</p>
-                        <p id="resultDaysHeld" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box yellow">
-                        <p class="text-sm">Current Value (Shares)</p>
-                        <p id="resultCurrentValue" class="text-xl font-bold"></p>
-                    </div>
-                    <div class="result-box text-center col-span-1 md:col-span-2">
-                        <p class="text-sm">Total Return</p>
-                        <p id="resultTotalReturn" class="text-3xl font-bold"></p>
-                        <p id="resultReturnPercentage" class="text-lg"></p>
-                    </div>
-                </div>
-
-                <div id="summarySection" class="text-gray-700 text-center mt-6 p-4 border border-gray-200 rounded-lg">
-                    <p id="resultSummary" class="font-medium"></p>
-                </div>
-            </div>
-            <p class="text-xs text-gray-500 text-center mt-8">Made with Gemini</p>
+    <div id="resultsSection" class="space-y-4 hidden">
+      <h2 class="text-2xl font-semibold text-gray-800 mb-4">Investment Performance Results</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="result-box blue"><p class="text-sm">Stock Symbol</p><p id="resultSymbol" class="text-xl font-bold"></p></div>
+        <div class="result-box green"><p class="text-sm">Initial Investment</p><p id="resultInitialInvestment" class="text-xl font-bold"></p></div>
+        <div class="result-box purple"><p class="text-sm">Purchase Price</p><p id="resultPurchasePrice" class="text-xl font-bold"></p></div>
+        <div class="result-box yellow"><p class="text-sm">Current Price</p><p id="resultCurrentPrice" class="text-xl font-bold"></p></div>
+        <div class="result-box blue"><p class="text-sm">Shares Purchased</p><p id="resultShares" class="text-xl font-bold"></p></div>
+        <div class="result-box green"><p class="text-sm">Dividend Income</p><p id="resultDividends" class="text-xl font-bold">$0.00</p></div>
+        <div class="result-box purple"><p class="text-sm">Days Held</p><p id="resultDaysHeld" class="text-xl font-bold"></p></div>
+        <div class="result-box yellow"><p class="text-sm">Current Value</p><p id="resultCurrentValue" class="text-xl font-bold"></p></div>
+        <div class="result-box text-center col-span-1 md:col-span-2">
+          <p class="text-sm">Total Return</p>
+          <p id="resultTotalReturn" class="text-3xl font-bold"></p>
+          <p id="resultReturnPercentage" class="text-lg"></p>
         </div>
+      </div>
+      <div id="summarySection" class="text-gray-700 text-center mt-6 p-4 border border-gray-200 rounded-lg">
+        <p id="resultSummary" class="font-medium"></p>
+      </div>
+    </div>
+    <p class="text-xs text-gray-500 text-center mt-8">Made with Gemini</p>
+  </div>
 
 <script>
-
 const stockSymbolInput = document.getElementById('stockSymbol');
 const purchaseDateInput = document.getElementById('purchaseDate');
 const investmentAmountInput = document.getElementById('investmentAmount');
@@ -195,141 +141,109 @@ const resultSummary = document.getElementById('resultSummary');
 calculateBtn.addEventListener('click', calculatePerformance);
 
 function showLoading(isLoading) {
-    if (isLoading) {
-        loadingSpinner.style.display = 'block';
-        buttonText.textContent = 'Calculating...';
-        calculateBtn.disabled = true;
-        errorMessageDiv.classList.add('hidden');
-        resultsSection.classList.add('hidden');
-    } else {
-        loadingSpinner.style.display = 'none';
-        buttonText.textContent = 'Calculate Performance';
-        calculateBtn.disabled = false;
-    }
+  loadingSpinner.style.display = isLoading ? 'block' : 'none';
+  buttonText.textContent = isLoading ? 'Calculating...' : 'Calculate Performance';
+  calculateBtn.disabled = isLoading;
+  errorMessageDiv.classList.add('hidden');
+  resultsSection.classList.add('hidden');
 }
 
 function showError(message) {
-    errorMessageDiv.textContent = message;
-    errorMessageDiv.classList.remove('hidden');
-    resultsSection.classList.add('hidden');
+  errorMessageDiv.textContent = message;
+  errorMessageDiv.classList.remove('hidden');
+  resultsSection.classList.add('hidden');
 }
 
 function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
-    try {
-        // 1. Historical price for purchase date
-        const historicalUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
-        const historicalResponse = await fetch(historicalUrl);
-        const historicalData = await historicalResponse.json();
+async function fetchStockData(symbol, purchaseDateStr) {
+  try {
+    const historicalUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
+    const historicalRes = await fetch(historicalUrl);
+    const historicalData = await historicalRes.json();
+    if (!historicalData.values || historicalData.values.length === 0) throw new Error(`No historical price for ${symbol} on ${purchaseDateStr}`);
+    const purchasePrice = parseFloat(historicalData.values[0].close);
 
-        if (!historicalData.values || historicalData.values.length === 0) {
-            throw new Error(`No historical price found for ${symbol} on ${purchaseDateStr}.`);
-        }
-async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
-    try {
-        // 1. Historical price for purchase date
-        const historicalUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
-        const historicalResponse = await fetch(historicalUrl);
-        const historicalData = await historicalResponse.json();
+    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
+    const quoteRes = await fetch(quoteUrl);
+    const quoteData = await quoteRes.json();
+    const currentPrice = parseFloat(quoteData.close);
+    if (!currentPrice || isNaN(currentPrice)) throw new Error(`Could not retrieve current price for ${symbol}.`);
 
-        if (!historicalData.values || historicalData.values.length === 0) {
-            throw new Error(`No historical price found for ${symbol} on ${purchaseDateStr}.`);
-        }
-
-        const purchasePrice = parseFloat(historicalData.values[0].close);
-
-        // 2. Current price (latest close)
-        const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
-        const quoteResponse = await fetch(quoteUrl);
-        const quoteData = await quoteResponse.json();
-
-        const currentPrice = parseFloat(quoteData.close);
-        if (!currentPrice || isNaN(currentPrice)) {
-            throw new Error(`Could not retrieve current price for ${symbol}.`);
-        }
-
-        return { purchasePrice, currentPrice };
-    } catch (error) {
-        console.error("Twelve Data API error:", error);
-        throw new Error(`Failed to fetch data for ${symbol}: ${error.message}`);
-    }
+    return { purchasePrice, currentPrice };
+  } catch (error) {
+    console.error(error);
+    throw new Error(error.message);
+  }
 }
+
 async function calculatePerformance() {
-    showLoading(true);
+  showLoading(true);
+  const symbol = stockSymbolInput.value.toUpperCase().trim();
+  const purchaseDateStr = purchaseDateInput.value;
+  const investmentAmount = parseFloat(investmentAmountInput.value);
+  const today = new Date();
 
-    const symbol = stockSymbolInput.value.toUpperCase().trim();
-    const purchaseDateStr = purchaseDateInput.value;
-    const investmentAmount = parseFloat(investmentAmountInput.value);
-    const today = new Date();
+  if (!symbol || !purchaseDateStr || isNaN(investmentAmount) || investmentAmount <= 0) {
+    showError('Please fill in all fields with valid data.');
+    showLoading(false);
+    return;
+  }
 
-    if (!symbol || !purchaseDateStr || isNaN(investmentAmount) || investmentAmount <= 0) {
-        showError('Please fill in all fields with valid data.');
-        showLoading(false);
-        return;
+  const purchaseDate = new Date(purchaseDateStr);
+  today.setHours(0, 0, 0, 0);
+  if (purchaseDate >= today) {
+    showError('Purchase date must be in the past.');
+    showLoading(false);
+    return;
+  }
+
+  try {
+    const { purchasePrice, currentPrice } = await fetchStockData(symbol, purchaseDateStr);
+    const sharesPurchased = investmentAmount / purchasePrice;
+    const diffDays = Math.ceil((today - purchaseDate) / (1000 * 60 * 60 * 24));
+    const currentValue = sharesPurchased * currentPrice;
+    const totalReturn = currentValue - investmentAmount;
+    const returnPercentage = (totalReturn / investmentAmount) * 100;
+
+    resultSymbol.textContent = symbol;
+    resultInitialInvestment.textContent = `$${investmentAmount.toFixed(2)}`;
+    resultPurchasePrice.textContent = `$${purchasePrice.toFixed(2)}`;
+    resultCurrentPrice.textContent = `$${currentPrice.toFixed(2)}`;
+    resultShares.textContent = sharesPurchased.toFixed(4);
+    resultDividends.textContent = `$0.00`;
+    resultDaysHeld.textContent = diffDays;
+    resultCurrentValue.textContent = `$${currentValue.toFixed(2)}`;
+    resultTotalReturn.textContent = `$${totalReturn.toFixed(2)}`;
+    resultReturnPercentage.textContent = `${returnPercentage.toFixed(2)}%`;
+
+    if (totalReturn >= 0) {
+      resultTotalReturn.classList.add('text-green-600');
+      resultReturnPercentage.classList.add('text-green-600');
+    } else {
+      resultTotalReturn.classList.add('text-red-600');
+      resultReturnPercentage.classList.add('text-red-600');
     }
 
-    const purchaseDate = new Date(purchaseDateStr);
-    today.setHours(0, 0, 0, 0);
-
-    if (purchaseDate >= today) {
-        showError('Purchase date must be in the past.');
-        showLoading(false);
-        return;
-    }
-
-    try {
-        const { purchasePrice, currentPrice } = await fetchStockData(symbol, purchaseDateStr, today.toISOString().split('T')[0]);
-
-        const sharesPurchased = investmentAmount / purchasePrice;
-        const diffDays = Math.ceil((today - purchaseDate) / (1000 * 60 * 60 * 24));
-        const currentValue = sharesPurchased * currentPrice;
-        const totalReturn = currentValue - investmentAmount;
-        const returnPercentage = (totalReturn / investmentAmount) * 100;
-
-        resultSymbol.textContent = symbol;
-        resultInitialInvestment.textContent = `$${investmentAmount.toFixed(2)}`;
-        resultPurchasePrice.textContent = `$${purchasePrice.toFixed(2)}`;
-        resultCurrentPrice.textContent = `$${currentPrice.toFixed(2)}`;
-        resultShares.textContent = sharesPurchased.toFixed(4);
-        resultDividends.textContent = `$0.00`;
-        resultDaysHeld.textContent = diffDays;
-        resultCurrentValue.textContent = `$${currentValue.toFixed(2)}`;
-        resultTotalReturn.textContent = `$${totalReturn.toFixed(2)}`;
-        resultReturnPercentage.textContent = `${returnPercentage.toFixed(2)}%`;
-
-        if (totalReturn >= 0) {
-            resultTotalReturn.classList.add('text-green-600');
-            resultReturnPercentage.classList.add('text-green-600');
-        } else {
-            resultTotalReturn.classList.add('text-red-600');
-            resultReturnPercentage.classList.add('text-red-600');
-        }
-
-        resultSummary.textContent = `Your $${investmentAmount.toFixed(2)} investment in ${symbol} on ${formatDate(purchaseDateStr)} would be worth $${currentValue.toFixed(2)} (${returnPercentage.toFixed(2)}% return).`;
-        resultsSection.classList.remove('hidden');
-    } catch (error) {
-        showError(error.message);
-    } finally {
-        showLoading(false);
-    }
+    resultSummary.textContent = `Your $${investmentAmount.toFixed(2)} investment in ${symbol} on ${formatDate(purchaseDateStr)} would be worth $${currentValue.toFixed(2)} (${returnPercentage.toFixed(2)}% return).`;
+    resultsSection.classList.remove('hidden');
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    showLoading(false);
+  }
 }
 
-// Set today's date as max for date input
+const today = new Date();
 const yyyy = today.getFullYear();
 const mm = String(today.getMonth() + 1).padStart(2, '0');
 const dd = String(today.getDate()).padStart(2, '0');
 purchaseDateInput.setAttribute('max', `${yyyy}-${mm}-${dd}`);
 
-// Auto-calculate on load
-window.onload = () => {
-    calculatePerformance();
-};
+window.onload = () => calculatePerformance();
 </script>
-        
-    </body>
-    </html>
-    
+</body>
+</html>
