@@ -3,105 +3,91 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Stock Performance Backtester</title>
+  <title>Stock Return Calculator</title>
+  <link rel="manifest" href="manifest.json" />
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f8f9fa;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 2rem;
     }
     .container {
+      max-width: 500px;
+      margin: auto;
       background: white;
       padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      width: 100%;
+      border-radius: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     input, button {
       width: 100%;
-      padding: 0.5rem;
+      padding: 0.75rem;
       margin: 0.5rem 0;
+      font-size: 1rem;
     }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    #result {
+    #results {
       margin-top: 1rem;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Stock Performance Backtester</h2>
-    <input type="text" id="symbol" placeholder="e.g. AAPL" />
-    <input type="date" id="date" />
-    <input type="number" id="amount" placeholder="Amount Invested" />
-    <button id="calculate">Calculate Performance</button>
-    <div id="result"></div>
-    <p style="text-align:center; font-size: 0.8em; color: gray;">Made with Gemini</p>
+    <h2>📈 Stock Return Calculator</h2>
+    <input type="text" id="symbol" placeholder="Enter stock symbol (e.g. AAPL)" value="AAPL" />
+    <input type="date" id="purchaseDate" />
+    <input type="number" id="amount" placeholder="Investment amount in $" value="1000" />
+    <button onclick="calculate()">Calculate</button>
+    <div id="results"></div>
   </div>
 
   <script>
-    const rapidAPIKey = "f2aa5563f3msh6528bfa57d6cf3bp18d94ajsn40b6bc3f7bd0"; // ✅ Your real key inserted here
+    const API_KEY = "d2001j1r01qmbi8qeu20d2001j1r01qmbi8qeu2g";
 
-    document.getElementById("calculate").addEventListener("click", async () => {
+    async function calculate() {
       const symbol = document.getElementById("symbol").value.toUpperCase();
-      const date = document.getElementById("date").value;
+      const date = document.getElementById("purchaseDate").value;
       const amount = parseFloat(document.getElementById("amount").value);
-      const resultDiv = document.getElementById("result");
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "Loading...";
+
+      if (!symbol || !date || !amount) {
+        resultsDiv.innerHTML = "Please fill all fields.";
+        return;
+      }
 
       try {
-        const response = await fetch(`https://yahoo-finance15.p.rapidapi.com/api/yahoo/hi/history/${symbol}/1d?diffandsplits=false`, {
-          method: "GET",
-          headers: {
-            "X-RapidAPI-Key": rapidAPIKey,
-            "X-RapidAPI-Host": "yahoo-finance15.p.rapidapi.com"
-          }
-        });
+        const from = Math.floor(new Date(date).getTime() / 1000);
+        const to = Math.floor(Date.now() / 1000);
 
-        const data = await response.json();
-        const prices = data.items || [];
-        if (!prices.length) throw new Error("No price data returned.");
+        const candleUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${API_KEY}`;
+        const candleRes = await fetch(candleUrl);
+        const candleData = await candleRes.json();
 
-        const startDate = new Date(date);
-        const startData = prices.find(p => new Date(p.date) >= startDate);
-        const endData = prices[prices.length - 1];
+        if (!candleData.c || candleData.c.length < 2) {
+          resultsDiv.innerHTML = "Not enough data for that date.";
+          return;
+        }
 
-        if (!startData || !endData) throw new Error("Missing start or end price.");
+        const purchasePrice = candleData.c[0];
+        const currentPrice = candleData.c[candleData.c.length - 1];
+        const shares = amount / purchasePrice;
+        const currentValue = shares * currentPrice;
+        const gain = currentValue - amount;
+        const returnPercent = (gain / amount * 100).toFixed(2);
 
-        const startPrice = startData.close;
-        const endPrice = endData.close;
-
-        const shares = amount / startPrice;
-        const finalValue = shares * endPrice;
-
-        const dividends = (data.dividends || []).filter(d => new Date(d.date) >= startDate);
-        const dividendTotal = dividends.reduce((sum, d) => sum + d.amount * shares, 0);
-
-        const totalReturn = ((finalValue + dividendTotal - amount) / amount) * 100;
-
-        resultDiv.innerHTML = `
-          <b>${symbol}</b> grew from $${startPrice.toFixed(2)} to $${endPrice.toFixed(2)} since ${date}.<br>
-          Initial Value: $${amount.toFixed(2)}<br>
-          Final Value (price only): $${finalValue.toFixed(2)}<br>
-          Dividends Earned: $${dividendTotal.toFixed(2)}<br>
-          <b>Total Return: ${totalReturn.toFixed(2)}%</b>
+        resultsDiv.innerHTML = `
+          Bought ${shares.toFixed(2)} shares of ${symbol} at $${purchasePrice.toFixed(2)}.<br>
+          Current price: $${currentPrice.toFixed(2)}<br>
+          Current value: $${currentValue.toFixed(2)}<br>
+          Gain/Loss: $${gain.toFixed(2)} (${returnPercent}%)
         `;
-      } catch (err) {
-        console.error(err);
-        resultDiv.innerHTML = `<span style="color:red;">❌ Error: ${err.message}</span>`;
+      } catch (e) {
+        resultsDiv.innerHTML = "Error fetching data.";
+        console.error(e);
       }
-    });
+    }
   </script>
 </body>
 </html>
