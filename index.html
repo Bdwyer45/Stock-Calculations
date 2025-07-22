@@ -2,98 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Performance Backtester</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4 text-center">Stock Performance Backtester</h1>
-    
-    <label class="block mb-2">Stock Symbol</label>
-    <input id="symbol" class="w-full p-2 border rounded mb-4" placeholder="e.g., AAPL">
-
-    <label class="block mb-2">Purchase Date</label>
-    <input id="date" type="date" class="w-full p-2 border rounded mb-4">
-
-    <label class="block mb-2">Investment Amount ($)</label>
-    <input id="amount" type="number" class="w-full p-2 border rounded mb-4" value="1000">
-
-    <button id="calculate" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">Calculate Performance</button>
-
-    <div id="result" class="mt-6 text-center hidden">
-      <p id="resultSummary" class="mb-2 text-sm"></p>
-      <p id="resultReturn" class="text-lg font-semibold"></p>
-    </div>
-
-    <p class="text-center text-xs mt-6 text-gray-400">Made with Gemini</p>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen p-4">
+  <div class="bg-white p-6 rounded-lg shadow-md max-w-md w-full text-center">
+    <h1 class="text-2xl font-bold mb-4">Stock Performance Backtester</h1>
+    <input id="symbol" class="border p-2 mb-3 w-full" placeholder="Stock Symbol (e.g., AAPL)" />
+    <input id="date" type="date" class="border p-2 mb-3 w-full" />
+    <input id="amount" type="number" class="border p-2 mb-3 w-full" placeholder="Investment Amount ($)" />
+    <button id="calculateBtn" class="bg-blue-600 text-white p-2 rounded w-full hover:bg-blue-700">Calculate Performance</button>
+    <div id="result" class="mt-4 text-left text-sm"></div>
+    <p class="text-xs mt-4 text-gray-400">Made with Gemini</p>
   </div>
 
   <script>
-    const calculateBtn = document.getElementById("calculate");
-    const symbolInput = document.getElementById("symbol");
-    const dateInput = document.getElementById("date");
-    const amountInput = document.getElementById("amount");
+    const apiKey = "687fec5d04c700.10558204"; // EOD API key
     const resultDiv = document.getElementById("result");
-    const resultSummary = document.getElementById("resultSummary");
-    const resultReturn = document.getElementById("resultReturn");
 
-    calculateBtn.addEventListener("click", async () => {
-      const symbol = symbolInput.value.trim().toUpperCase();
-      const date = dateInput.value;
-      const amount = parseFloat(amountInput.value);
+    async function fetchStockData(symbol, fromDate) {
+      const url = `https://eodhistoricaldata.com/api/eod/${symbol}.US?from=${fromDate}&to=${new Date().toISOString().split('T')[0]}&api_token=${apiKey}&period=d`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Price data fetch failed");
+      return res.json();
+    }
 
-      if (!symbol || !date || isNaN(amount) || amount <= 0) {
-        alert("Please fill in all fields correctly.");
+    async function fetchDividends(symbol, fromDate) {
+      const url = `https://eodhistoricaldata.com/api/div/${symbol}.US?from=${fromDate}&api_token=${apiKey}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Dividend data fetch failed");
+      return res.json();
+    }
+
+    function formatUSD(val) {
+      return `$${val.toFixed(2)}`;
+    }
+
+    document.getElementById("calculateBtn").addEventListener("click", async () => {
+      const symbol = document.getElementById("symbol").value.trim().toUpperCase();
+      const fromDate = document.getElementById("date").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+
+      if (!symbol || !fromDate || isNaN(amount) || amount <= 0) {
+        resultDiv.innerHTML = `<p class="text-red-500">❌ Please enter valid symbol, date, and amount.</p>`;
         return;
       }
 
-      const apiKey = "687fec5d04c700.10558204"; // EOD Historical Data API Key
-
-      const baseUrl = `https://eodhistoricaldata.com/api/eod/${symbol}.US`;
-      const fromDate = date;
-      const toDate = new Date().toISOString().split("T")[0];
-
-      const url = `${baseUrl}?from=${fromDate}&to=${toDate}&api_token=${apiKey}&period=d&fmt=json`;
+      resultDiv.innerHTML = "🔄 Calculating...";
 
       try {
-        const response = await fetch(url);
-        const data = await response.json();
+        const prices = await fetchStockData(symbol, fromDate);
+        const dividends = await fetchDividends(symbol, fromDate);
 
-        if (!data || data.length < 2) {
-          resultSummary.textContent = "❌ Error: Not enough data for selected date.";
-          resultReturn.textContent = "";
-          resultDiv.classList.remove("hidden");
-          return;
-        }
+        if (prices.length < 2) throw new Error("Not enough price data");
 
-        const purchasePrice = data[0].adjusted_close || data[0].close;
-        const currentPrice = data[data.length - 1].adjusted_close || data[data.length - 1].close;
-        const sharesBought = amount / purchasePrice;
-        const currentValue = sharesBought * currentPrice;
-        const returnPercentage = ((currentValue - amount) / amount) * 100;
+        const start = prices[0];
+        const end = prices[prices.length - 1];
+        const startPrice = start.adjusted_close || start.close;
+        const endPrice = end.adjusted_close || end.close;
 
-        resultSummary.innerHTML = `
-          You bought <strong>${sharesBought.toFixed(4)}</strong> shares of <strong>${symbol}</strong> at $${purchasePrice.toFixed(2)}.<br/>
-          Today it's worth <strong>$${currentPrice.toFixed(2)}</strong> per share.<br/>
-          Your $${amount.toFixed(2)} investment is now worth <strong>$${currentValue.toFixed(2)}</strong>.
+        const dividendSum = dividends.reduce((sum, d) => sum + parseFloat(d.adjusted_amount || d.amount || 0), 0);
+
+        const shares = amount / startPrice;
+        const finalValue = (shares * endPrice) + (shares * dividendSum);
+        const returnPct = ((finalValue - amount) / amount) * 100;
+
+        resultDiv.innerHTML = `
+          <p><strong>${symbol}</strong> grew from ${formatUSD(startPrice)} to ${formatUSD(endPrice)} since <strong>${fromDate}</strong>.</p>
+          <p>Dividends received: <strong>${formatUSD(dividendSum * shares)}</strong></p>
+          <p>Total value: <strong>${formatUSD(finalValue)}</strong></p>
+          <p class="text-green-600 mt-2"><strong>Return: ${returnPct.toFixed(2)}%</strong></p>
         `;
-
-        resultReturn.textContent = `Return: ${returnPercentage.toFixed(2)}%`;
-        resultReturn.style.color = returnPercentage >= 0 ? "green" : "red";
-        resultDiv.classList.remove("hidden");
-      } catch (error) {
-        console.error(error);
-        resultSummary.textContent = "❌ Error fetching stock data.";
-        resultReturn.textContent = "";
-        resultDiv.classList.remove("hidden");
+      } catch (err) {
+        console.error(err);
+        resultDiv.innerHTML = `<p class="text-red-500">❌ Error: ${err.message}</p>`;
       }
-    });
-
-    // Set max date as today
-    document.addEventListener("DOMContentLoaded", () => {
-      const today = new Date().toISOString().split("T")[0];
-      dateInput.setAttribute("max", today);
     });
   </script>
 </body>
