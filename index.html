@@ -2,97 +2,98 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stock Performance Backtester</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-  <div class="card bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
     <h1 class="text-2xl font-bold mb-4 text-center">Stock Performance Backtester</h1>
+    
     <label class="block mb-2">Stock Symbol</label>
-    <input id="symbol" class="w-full p-2 border rounded mb-4" placeholder="e.g., AAPL" />
+    <input id="symbol" class="w-full p-2 border rounded mb-4" placeholder="e.g., AAPL">
 
     <label class="block mb-2">Purchase Date</label>
-    <input id="purchaseDate" type="date" class="w-full p-2 border rounded mb-4" />
+    <input id="date" type="date" class="w-full p-2 border rounded mb-4">
 
     <label class="block mb-2">Investment Amount ($)</label>
-    <input id="amount" type="number" class="w-full p-2 border rounded mb-4" />
+    <input id="amount" type="number" class="w-full p-2 border rounded mb-4" value="1000">
 
-    <button id="calculateBtn" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">
-      Calculate Performance
-    </button>
+    <button id="calculate" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">Calculate Performance</button>
 
-    <div id="results" class="mt-6 text-center hidden">
-      <p class="font-semibold" id="resultSummary"></p>
-      <p id="resultReturnPercentage" class="text-green-600 font-bold text-lg mt-2"></p>
+    <div id="result" class="mt-6 text-center hidden">
+      <p id="resultSummary" class="mb-2 text-sm"></p>
+      <p id="resultReturn" class="text-lg font-semibold"></p>
     </div>
 
-    <p id="error" class="text-red-600 text-sm mt-4 text-center hidden"></p>
-
-    <p class="text-xs text-center text-gray-400 mt-6">Made with Gemini</p>
+    <p class="text-center text-xs mt-6 text-gray-400">Made with Gemini</p>
   </div>
 
   <script>
-    const calculateBtn = document.getElementById("calculateBtn");
-    const resultsSection = document.getElementById("results");
+    const calculateBtn = document.getElementById("calculate");
+    const symbolInput = document.getElementById("symbol");
+    const dateInput = document.getElementById("date");
+    const amountInput = document.getElementById("amount");
+    const resultDiv = document.getElementById("result");
     const resultSummary = document.getElementById("resultSummary");
-    const resultReturnPercentage = document.getElementById("resultReturnPercentage");
-    const errorDisplay = document.getElementById("error");
-
-    async function fetchPrice(symbol, date) {
-      const url = `https://eodhistoricaldata.com/api/eod/${symbol}.US?from=${date}&to=${date}&api_token=687fec5d04c700.10558204&fmt=json`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (!Array.isArray(data) || data.length === 0 || !data[0].adjusted_close) {
-        throw new Error("No price data found.");
-      }
-
-      return data[0].adjusted_close;
-    }
-
-    async function fetchLatestPrice(symbol) {
-      const url = `https://eodhistoricaldata.com/api/real-time/${symbol}.US?api_token=687fec5d04c700.10558204&fmt=json`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (!data.close) {
-        throw new Error("No latest price found.");
-      }
-
-      return data.close;
-    }
+    const resultReturn = document.getElementById("resultReturn");
 
     calculateBtn.addEventListener("click", async () => {
-      const symbol = document.getElementById("symbol").value.toUpperCase();
-      const purchaseDate = document.getElementById("purchaseDate").value;
-      const amount = parseFloat(document.getElementById("amount").value);
+      const symbol = symbolInput.value.trim().toUpperCase();
+      const date = dateInput.value;
+      const amount = parseFloat(amountInput.value);
 
-      resultsSection.classList.add("hidden");
-      errorDisplay.classList.add("hidden");
-
-      if (!symbol || !purchaseDate || isNaN(amount) || amount <= 0) {
-        errorDisplay.textContent = "Please enter all fields correctly.";
-        errorDisplay.classList.remove("hidden");
+      if (!symbol || !date || isNaN(amount) || amount <= 0) {
+        alert("Please fill in all fields correctly.");
         return;
       }
 
-      try {
-        const purchasePrice = await fetchPrice(symbol, purchaseDate);
-        const currentPrice = await fetchLatestPrice(symbol);
+      const apiKey = "687fec5d04c700.10558204"; // EOD Historical Data API Key
 
+      const baseUrl = `https://eodhistoricaldata.com/api/eod/${symbol}.US`;
+      const fromDate = date;
+      const toDate = new Date().toISOString().split("T")[0];
+
+      const url = `${baseUrl}?from=${fromDate}&to=${toDate}&api_token=${apiKey}&period=d&fmt=json`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data || data.length < 2) {
+          resultSummary.textContent = "❌ Error: Not enough data for selected date.";
+          resultReturn.textContent = "";
+          resultDiv.classList.remove("hidden");
+          return;
+        }
+
+        const purchasePrice = data[0].adjusted_close || data[0].close;
+        const currentPrice = data[data.length - 1].adjusted_close || data[data.length - 1].close;
         const sharesBought = amount / purchasePrice;
         const currentValue = sharesBought * currentPrice;
         const returnPercentage = ((currentValue - amount) / amount) * 100;
 
-        resultSummary.textContent = `${symbol} has grown from $${purchasePrice.toFixed(2)} to $${currentPrice.toFixed(2)} since ${purchaseDate}.`;
-        resultReturnPercentage.textContent = `Return: ${returnPercentage.toFixed(2)}%`;
+        resultSummary.innerHTML = `
+          You bought <strong>${sharesBought.toFixed(4)}</strong> shares of <strong>${symbol}</strong> at $${purchasePrice.toFixed(2)}.<br/>
+          Today it's worth <strong>$${currentPrice.toFixed(2)}</strong> per share.<br/>
+          Your $${amount.toFixed(2)} investment is now worth <strong>$${currentValue.toFixed(2)}</strong>.
+        `;
 
-        resultsSection.classList.remove("hidden");
-      } catch (err) {
-        errorDisplay.textContent = `❌ Error: ${err.message}`;
-        errorDisplay.classList.remove("hidden");
+        resultReturn.textContent = `Return: ${returnPercentage.toFixed(2)}%`;
+        resultReturn.style.color = returnPercentage >= 0 ? "green" : "red";
+        resultDiv.classList.remove("hidden");
+      } catch (error) {
+        console.error(error);
+        resultSummary.textContent = "❌ Error fetching stock data.";
+        resultReturn.textContent = "";
+        resultDiv.classList.remove("hidden");
       }
+    });
+
+    // Set max date as today
+    document.addEventListener("DOMContentLoaded", () => {
+      const today = new Date().toISOString().split("T")[0];
+      dateInput.setAttribute("max", today);
     });
   </script>
 </body>
