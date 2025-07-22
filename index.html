@@ -4,49 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stock Performance Backtester</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-6 text-center">Stock Performance Backtester</h1>
+  <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">Stock Performance Backtester</h1>
     <form id="stockForm" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium">Stock Symbol</label>
-        <input id="symbol" type="text" class="w-full border rounded p-2" placeholder="e.g., AAPL" required />
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Purchase Date</label>
-        <input id="date" type="date" class="w-full border rounded p-2" required />
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Investment Amount ($)</label>
-        <input id="amount" type="number" class="w-full border rounded p-2" required />
-      </div>
-      <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded">Calculate Performance</button>
+      <input type="text" id="symbol" placeholder="Stock Symbol" class="w-full border border-gray-300 p-2 rounded" required>
+      <input type="date" id="purchaseDate" class="w-full border border-gray-300 p-2 rounded" required>
+      <input type="number" id="investmentAmount" placeholder="Investment Amount ($)" class="w-full border border-gray-300 p-2 rounded" required>
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Calculate Performance</button>
     </form>
     <div id="result" class="mt-6 text-center"></div>
-    <p class="text-xs text-center mt-6 text-gray-400">Made with Gemini</p>
+    <p class="text-xs text-center mt-4 text-gray-400">Made with Gemini</p>
   </div>
 
   <script>
-    document.getElementById("stockForm").addEventListener("submit", async function (e) {
+    document.getElementById('stockForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
-      const symbol = document.getElementById("symbol").value.trim().toUpperCase();
-      const fromDate = document.getElementById("date").value;
-      const amount = parseFloat(document.getElementById("amount").value);
-      const resultDiv = document.getElementById("result");
-      const apiKey = "687fec5d04c700.10558204";
+      const symbolInput = document.getElementById('symbol').value.trim().toUpperCase();
+      const symbol = symbolInput.endsWith('.US') ? symbolInput : symbolInput + '.US';
+      const purchaseDate = document.getElementById('purchaseDate').value;
+      const investmentAmount = parseFloat(document.getElementById('investmentAmount').value);
+      const resultDiv = document.getElementById('result');
+      const apiKey = '687fec5d04c700.10558204';
 
-      resultDiv.innerHTML = "Calculating...";
+      const today = new Date().toISOString().split('T')[0];
 
       try {
-        const today = new Date().toISOString().split("T")[0];
-
-        // Fetch price data
-        const priceRes = await fetch(
-          `https://eodhistoricaldata.com/api/eod/${symbol}.US?from=${fromDate}&to=${today}&api_token=${apiKey}&period=d&fmt=json`
-        );
+        const priceRes = await fetch(`https://eodhistoricaldata.com/api/eod/${symbol}?from=${purchaseDate}&to=${today}&api_token=${apiKey}&fmt=json`);
         const priceData = await priceRes.json();
 
         if (!Array.isArray(priceData) || priceData.length < 2) {
@@ -56,33 +43,29 @@
         const startPrice = priceData[0].adjusted_close;
         const endPrice = priceData[priceData.length - 1].adjusted_close;
 
-        // Fetch dividends
-        const divRes = await fetch(
-          `https://eodhistoricaldata.com/api/div/${symbol}.US?from=${fromDate}&to=${today}&api_token=${apiKey}&fmt=json`
-        );
+        // Fetch dividend data
+        const divRes = await fetch(`https://eodhistoricaldata.com/api/div/${symbol}?api_token=${apiKey}&from=${purchaseDate}&to=${today}&fmt=json`);
         const divData = await divRes.json();
 
-        const totalDividends = Array.isArray(divData)
-          ? divData.reduce((sum, item) => sum + parseFloat(item.value || 0), 0)
-          : 0;
+        let totalDividends = 0;
+        if (Array.isArray(divData)) {
+          totalDividends = divData.reduce((sum, item) => sum + (item.value || 0), 0);
+        }
 
-        const sharesBought = amount / startPrice;
-        const endValue = sharesBought * endPrice;
-        const dividendValue = sharesBought * totalDividends;
-        const totalValue = endValue + dividendValue;
-        const returnPct = ((totalValue - amount) / amount) * 100;
+        const totalReturn = ((endPrice + totalDividends) / startPrice - 1) * 100;
+        const finalAmount = investmentAmount * (1 + totalReturn / 100);
 
         resultDiv.innerHTML = `
-          <p><strong>${symbol}</strong> grew from $${startPrice.toFixed(2)} to $${endPrice.toFixed(2)} since ${fromDate}.</p>
-          <p>📈 Investment Value: $${endValue.toFixed(2)}</p>
-          <p>💸 Dividends Earned: $${dividendValue.toFixed(2)}</p>
-          <p class="mt-2 font-bold ${returnPct >= 0 ? "text-green-600" : "text-red-600"}">
-            Total Return: ${returnPct.toFixed(2)}%
+          <p class="text-sm text-gray-700">
+            ${symbolInput} has grown from $${startPrice.toFixed(2)} to $${endPrice.toFixed(2)} since ${purchaseDate}.
           </p>
+          <p class="text-sm text-gray-700">Dividends collected: $${totalDividends.toFixed(2)}</p>
+          <p class="text-green-600 font-bold mt-2">Total Return: ${totalReturn.toFixed(2)}%</p>
+          <p class="text-blue-600 mt-1">Final Value: $${finalAmount.toFixed(2)}</p>
         `;
       } catch (err) {
         console.error(err);
-        resultDiv.innerHTML = `<p class="text-red-600 font-semibold">❌ Error: ${err.message}</p>`;
+        resultDiv.innerHTML = `<p class="text-red-600 font-bold mt-2">❌ Error: ${err.message}</p>`;
       }
     });
   </script>
