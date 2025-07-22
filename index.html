@@ -170,7 +170,6 @@
         </div>
 
 <script>
-const API_KEY = '3A19C3JYVDVDQVSG'; // Replace with your real Alpha Vantage key
 
 const stockSymbolInput = document.getElementById('stockSymbol');
 const purchaseDateInput = document.getElementById('purchaseDate');
@@ -221,29 +220,44 @@ function formatDate(dateString) {
 }
 
 async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
-    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&apikey=${API_KEY}`;
-    const response = await fetch(url);
-    const data = await response.json();
+    try {
+        // 1. Historical price for purchase date
+        const historicalUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
+        const historicalResponse = await fetch(historicalUrl);
+        const historicalData = await historicalResponse.json();
 
-    if (!data['Time Series (Daily)']) {
-        throw new Error(`Alpha Vantage error: ${data['Note'] || data['Error Message'] || 'Missing data'}`);
+        if (!historicalData.values || historicalData.values.length === 0) {
+            throw new Error(`No historical price found for ${symbol} on ${purchaseDateStr}.`);
+        }
+async function fetchStockData(symbol, purchaseDateStr, endDateStr) {
+    try {
+        // 1. Historical price for purchase date
+        const historicalUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&start_date=${purchaseDateStr}&end_date=${purchaseDateStr}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
+        const historicalResponse = await fetch(historicalUrl);
+        const historicalData = await historicalResponse.json();
+
+        if (!historicalData.values || historicalData.values.length === 0) {
+            throw new Error(`No historical price found for ${symbol} on ${purchaseDateStr}.`);
+        }
+
+        const purchasePrice = parseFloat(historicalData.values[0].close);
+
+        // 2. Current price (latest close)
+        const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=b31404d3c4d64a34b9b65c7b073c692f`;
+        const quoteResponse = await fetch(quoteUrl);
+        const quoteData = await quoteResponse.json();
+
+        const currentPrice = parseFloat(quoteData.close);
+        if (!currentPrice || isNaN(currentPrice)) {
+            throw new Error(`Could not retrieve current price for ${symbol}.`);
+        }
+
+        return { purchasePrice, currentPrice };
+    } catch (error) {
+        console.error("Twelve Data API error:", error);
+        throw new Error(`Failed to fetch data for ${symbol}: ${error.message}`);
     }
-
-    const dailyData = data['Time Series (Daily)'];
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const purchaseStr = new Date(purchaseDateStr).toISOString().split('T')[0];
-
-    const purchasePrice = parseFloat(dailyData[purchaseStr]?.['5. adjusted close']);
-    const currentPrice = parseFloat(dailyData[todayStr]?.['5. adjusted close']) || parseFloat(Object.values(dailyData)[0]['5. adjusted close']);
-
-    if (!purchasePrice || !currentPrice) {
-        throw new Error(`Could not find valid stock prices for ${symbol} on ${purchaseStr} or today.`);
-    }
-
-    return { purchasePrice, currentPrice };
 }
-
 async function calculatePerformance() {
     showLoading(true);
 
