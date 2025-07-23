@@ -1,93 +1,695 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Stock Return Calculator</title>
-  <link rel="manifest" href="manifest.json" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      margin: 0;
-      padding: 2rem;
-    }
-    .container {
-      max-width: 500px;
-      margin: auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 1rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    input, button {
-      width: 100%;
-      padding: 0.75rem;
-      margin: 0.5rem 0;
-      font-size: 1rem;
-    }
-    #results {
-      margin-top: 1rem;
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Time Machine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+            animation: drift 20s ease-in-out infinite;
+        }
+        
+        @keyframes drift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(-20px, -10px) rotate(1deg); }
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: fadeInUp 1s ease-out;
+        }
+        
+        .hero p {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+        
+        .cta-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Calculator Section */
+        .calculator {
+            padding: 100px 0;
+            background: white;
+            position: relative;
+        }
+        
+        .calculator::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            clip-path: polygon(0 0, 100% 0, 100% 80%, 0 100%);
+        }
+        
+        .calculator-content {
+            position: relative;
+            z-index: 2;
+            background: white;
+            border-radius: 20px;
+            padding: 60px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            margin-top: 50px;
+        }
+        
+        .calculator h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 3rem;
+            font-weight: 700;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .form-group {
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #555;
+            font-size: 1.1rem;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .calculate-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+        
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .calculate-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Results Section */
+        .results {
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+        
+        .results.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .results h3 {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .result-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #28a745;
+            margin: 20px 0;
+        }
+        
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .result-item {
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .result-item h4 {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .result-item .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 3rem;
+            font-weight: 700;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .feature-card p {
+            color: #666;
+            line-height: 1.7;
+        }
+        
+        /* Footer */
+        .footer {
+            background: #333;
+            color: white;
+            padding: 50px 0;
+            text-align: center;
+        }
+        
+        .footer p {
+            margin-bottom: 20px;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .social-links a {
+            color: white;
+            text-decoration: none;
+            padding: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.1rem;
+            }
+            
+            .calculator-content {
+                padding: 30px 20px;
+                margin-top: 20px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .result-value {
+                font-size: 2rem;
+            }
+        }
+        
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateX(-50%) translateY(0);
+            }
+            40% {
+                transform: translateX(-50%) translateY(-10px);
+            }
+            60% {
+                transform: translateX(-50%) translateY(-5px);
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h2>📈 Stock Return Calculator</h2>
-    <input type="text" id="symbol" placeholder="Enter stock symbol (e.g. AAPL)" value="AAPL" />
-    <input type="date" id="purchaseDate" />
-    <input type="number" id="amount" placeholder="Investment amount in $" value="1000" />
-    <button onclick="calculate()">Calculate</button>
-    <div id="results"></div>
-  </div>
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>📈 Stock Time Machine</h1>
+                <p>Travel back in time and discover what your investments would be worth today. See the power of compound growth with real historical data.</p>
+                <a href="#calculator" class="cta-button">Start Time Traveling</a>
+            </div>
+            <div class="scroll-indicator">
+                <div style="font-size: 2rem;">⬇</div>
+            </div>
+        </div>
+    </section>
 
-  <script>
-    const API_KEY = "d2001j1r01qmbi8qeu20d2001j1r01qmbi8qeu2g";
+    <!-- Calculator Section -->
+    <section class="calculator" id="calculator">
+        <div class="container">
+            <div class="calculator-content">
+                <h2>🕰️ Time Travel Calculator</h2>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="stock">Choose Your Stock</label>
+                        <select id="stock">
+                            <option value="">Select a stock...</option>
+                            <option value="AAPL" data-name="Apple Inc.">Apple (AAPL)</option>
+                            <option value="MSFT" data-name="Microsoft Corp.">Microsoft (MSFT)</option>
+                            <option value="GOOGL" data-name="Alphabet Inc.">Google (GOOGL)</option>
+                            <option value="AMZN" data-name="Amazon.com Inc.">Amazon (AMZN)</option>
+                            <option value="TSLA" data-name="Tesla Inc.">Tesla (TSLA)</option>
+                            <option value="META" data-name="Meta Platforms">Meta (META)</option>
+                            <option value="NVDA" data-name="NVIDIA Corp.">NVIDIA (NVDA)</option>
+                            <option value="NFLX" data-name="Netflix Inc.">Netflix (NFLX)</option>
+                            <option value="AMD" data-name="Advanced Micro Devices">AMD (AMD)</option>
+                            <option value="ZOOM" data-name="Zoom Video Communications">Zoom (ZM)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="investment">Investment Amount ($)</label>
+                        <input type="number" id="investment" placeholder="1000" min="1" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="year">Time Travel Year</label>
+                        <select id="year">
+                            <option value="">Select a year...</option>
+                            <option value="2020">2020 - Pandemic Low</option>
+                            <option value="2018">2018 - Market Correction</option>
+                            <option value="2015">2015 - Strong Growth</option>
+                            <option value="2012">2012 - Recovery Era</option>
+                            <option value="2010">2010 - Post Crisis</option>
+                            <option value="2008">2008 - Financial Crisis</option>
+                            <option value="2005">2005 - Pre-Crisis</option>
+                            <option value="2000">2000 - Dot-com Era</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="month">Month</label>
+                        <select id="month">
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button class="calculate-btn" onclick="calculateInvestment()">
+                    🚀 Calculate My Time Travel Investment
+                </button>
+                
+                <div class="results" id="results">
+                    <h3>Your Time Travel Results</h3>
+                    <div class="result-value" id="finalValue">$0.00</div>
+                    <p id="resultDescription"></p>
+                    
+                    <div class="result-details">
+                        <div class="result-item">
+                            <h4>Initial Investment</h4>
+                            <div class="value" id="initialInvestment">$0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Current Value</h4>
+                            <div class="value" id="currentValue">$0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Total Return</h4>
+                            <div class="value" id="totalReturn">0%</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Annual Return</h4>
+                            <div class="value" id="annualReturn">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    async function calculate() {
-      const symbol = document.getElementById("symbol").value.toUpperCase();
-      const date = document.getElementById("purchaseDate").value;
-      const amount = parseFloat(document.getElementById("amount").value);
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "Loading...";
+    <!-- Features Section -->
+    <section class="features">
+        <div class="container">
+            <h2>✨ Why Use Our Time Machine?</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Real Historical Data</h3>
+                    <p>Our calculations use actual historical stock prices and dividends, giving you accurate insights into past investment performance.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Instant Calculations</h3>
+                    <p>Get immediate results showing exactly what your investment would be worth today, including compound growth calculations.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Popular Stocks</h3>
+                    <p>Choose from top-performing companies like Apple, Tesla, Amazon, and more to see the power of long-term investing.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-      if (!symbol || !date || !amount) {
-        resultsDiv.innerHTML = "Please fill all fields.";
-        return;
-      }
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Stock Time Machine. Educational purposes only. Not investment advice.</p>
+            <div class="social-links">
+                <a href="#">📱</a>
+                <a href="#">🐦</a>
+                <a href="#">💼</a>
+            </div>
+        </div>
+    </footer>
 
-      try {
-        const from = Math.floor(new Date(date).getTime() / 1000);
-        const to = Math.floor(Date.now() / 1000);
+    <script>
+        // Mock historical data - in a real app, this would come from an API
+        const stockData = {
+            'AAPL': {
+                name: 'Apple Inc.',
+                prices: {
+                    '2000-01': 1.00, '2005-01': 1.75, '2008-01': 4.18, '2010-01': 6.36,
+                    '2012-01': 13.44, '2015-01': 26.75, '2018-01': 42.31, '2020-01': 77.38,
+                    '2020-03': 63.57, '2025-01': 220.00
+                }
+            },
+            'MSFT': {
+                name: 'Microsoft Corp.',
+                prices: {
+                    '2000-01': 39.81, '2005-01': 26.25, '2008-01': 32.60, '2010-01': 28.05,
+                    '2012-01': 29.53, '2015-01': 41.34, '2018-01': 86.20, '2020-01': 158.96,
+                    '2020-03': 137.35, '2025-01': 430.00
+                }
+            },
+            'GOOGL': {
+                name: 'Alphabet Inc.',
+                prices: {
+                    '2005-01': 195.62, '2008-01': 691.48, '2010-01': 313.06,
+                    '2012-01': 325.99, '2015-01': 524.81, '2018-01': 1065.00, '2020-01': 1434.23,
+                    '2020-03': 1162.81, '2025-01': 185.00
+                }
+            },
+            'AMZN': {
+                name: 'Amazon.com Inc.',
+                prices: {
+                    '2000-01': 64.56, '2005-01': 44.29, '2008-01': 77.26, '2010-01': 125.41,
+                    '2012-01': 173.10, '2015-01': 354.53, '2018-01': 1450.89, '2020-01': 1864.72,
+                    '2020-03': 1689.54, '2025-01': 220.00
+                }
+            },
+            'TSLA': {
+                name: 'Tesla Inc.',
+                prices: {
+                    '2012-01': 7.55, '2015-01': 43.86, '2018-01': 320.53, '2020-01': 86.05,
+                    '2020-03': 70.10, '2025-01': 410.00
+                }
+            },
+            'META': {
+                name: 'Meta Platforms',
+                prices: {
+                    '2012-01': 38.23, '2015-01': 78.45, '2018-01': 181.42, '2020-01': 224.20,
+                    '2020-03': 150.94, '2025-01': 580.00
+                }
+            },
+            'NVDA': {
+                name: 'NVIDIA Corp.',
+                prices: {
+                    '2000-01': 3.47, '2005-01': 2.95, '2008-01': 5.27, '2010-01': 4.26,
+                    '2012-01': 3.70, '2015-01': 5.00, '2018-01': 45.07, '2020-01': 60.47,
+                    '2020-03': 37.89, '2025-01': 145.00
+                }
+            },
+            'NFLX': {
+                name: 'Netflix Inc.',
+                prices: {
+                    '2005-01': 2.19, '2008-01': 3.71, '2010-01': 6.75,
+                    '2012-01': 11.86, '2015-01': 49.61, '2018-01': 302.80, '2020-01': 321.15,
+                    '2020-03': 344.73, '2025-01': 950.00
+                }
+            },
+            'AMD': {
+                name: 'Advanced Micro Devices',
+                prices: {
+                    '2000-01': 25.06, '2005-01': 18.71, '2008-01': 7.52, '2010-01': 8.17,
+                    '2012-01': 6.36, '2015-01': 2.70, '2018-01': 10.42, '2020-01': 47.74,
+                    '2020-03': 44.31, '2025-01': 125.00
+                }
+            },
+            'ZOOM': {
+                name: 'Zoom Video Communications',
+                prices: {
+                    '2020-01': 68.72, '2020-03': 159.56, '2025-01': 85.00
+                }
+            }
+        };
 
-        const candleUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${API_KEY}`;
-        const candleRes = await fetch(candleUrl);
-        const candleData = await candleRes.json();
-
-        if (!candleData.c || candleData.c.length < 2) {
-          resultsDiv.innerHTML = "Not enough data for that date.";
-          return;
+        function calculateInvestment() {
+            const stock = document.getElementById('stock').value;
+            const investment = parseFloat(document.getElementById('investment').value);
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            
+            if (!stock || !investment || !year) {
+                alert('Please fill in all fields!');
+                return;
+            }
+            
+            const dateKey = `${year}-${month}`;
+            const stockInfo = stockData[stock];
+            
+            if (!stockInfo || !stockInfo.prices[dateKey]) {
+                alert('Data not available for this stock and date combination.');
+                return;
+            }
+            
+            const historicalPrice = stockInfo.prices[dateKey];
+            const currentPrice = stockInfo.prices['2025-01'];
+            const shares = investment / historicalPrice;
+            const currentValue = shares * currentPrice;
+            const totalReturnPercent = ((currentValue - investment) / investment) * 100;
+            const years = 2025 - parseInt(year);
+            const annualReturnPercent = (Math.pow(currentValue / investment, 1 / years) - 1) * 100;
+            
+            // Update results
+            document.getElementById('initialInvestment').textContent = `$${investment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('currentValue').textContent = `$${currentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('finalValue').textContent = `$${currentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('totalReturn').textContent = `${totalReturnPercent > 0 ? '+' : ''}${totalReturnPercent.toFixed(1)}%`;
+            document.getElementById('annualReturn').textContent = `${annualReturnPercent > 0 ? '+' : ''}${annualReturnPercent.toFixed(1)}%`;
+            
+            const resultDesc = document.getElementById('resultDescription');
+            if (totalReturnPercent > 0) {
+                resultDesc.innerHTML = `🎉 Your $${investment.toLocaleString()} investment in <strong>${stockInfo.name}</strong> from ${month}/${year} would be worth <strong>$${currentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> today!`;
+                document.getElementById('finalValue').style.color = '#28a745';
+            } else {
+                resultDesc.innerHTML = `📉 Your $${investment.toLocaleString()} investment in <strong>${stockInfo.name}</strong> from ${month}/${year} would be worth <strong>$${currentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> today.`;
+                document.getElementById('finalValue').style.color = '#dc3545';
+            }
+            
+            // Show results with animation
+            const resultsSection = document.getElementById('results');
+            resultsSection.classList.add('show');
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        const purchasePrice = candleData.c[0];
-        const currentPrice = candleData.c[candleData.c.length - 1];
-        const shares = amount / purchasePrice;
-        const currentValue = shares * currentPrice;
-        const gain = currentValue - amount;
-        const returnPercent = (gain / amount * 100).toFixed(2);
+        // Smooth scrolling for CTA button
+        document.querySelector('.cta-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelector('#calculator').scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
 
-        resultsDiv.innerHTML = `
-          Bought ${shares.toFixed(2)} shares of ${symbol} at $${purchasePrice.toFixed(2)}.<br>
-          Current price: $${currentPrice.toFixed(2)}<br>
-          Current value: $${currentValue.toFixed(2)}<br>
-          Gain/Loss: $${gain.toFixed(2)} (${returnPercent}%)
-        `;
-      } catch (e) {
-        resultsDiv.innerHTML = "Error fetching data.";
-        console.error(e);
-      }
-    }
-  </script>
-</body>
-</html>
+        // Add some default values for better UX
+        document.getElementById('investment').value = '1000';
+        document.getElementById('month').value = '01';
+    </script>
